@@ -41,7 +41,15 @@
       width: min(var(--max), calc(100% - 2*var(--pad)));
       margin: 0 auto;
     }
+    /* Active experience date turns green when centered */
+.role.is-active .dates{
+  color: var(--accent);
+}
 
+/* Smooth transition so it fades to green nicely */
+.dates{
+  transition: color .25s ease;
+}
     .nav{
       position: sticky;
       top: 0;
