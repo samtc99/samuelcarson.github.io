@@ -222,7 +222,7 @@
     <section id="experience">
       <h2>Experience</h2>
 
-      <div class="role">
+      <div class="role" data-role>
         <div class="role-top">
           <div>
             <div class="company">WongDoody</div>
@@ -246,7 +246,7 @@
         </ul>
       </div>
 
-      <div class="role">
+      <div class="role" data-role>
         <div class="role-top">
           <div>
             <div class="company">Slalom Consulting</div>
@@ -267,7 +267,7 @@
         </ul>
       </div>
 
-      <div class="role">
+      <div class="role" data-role>
         <div class="role-top">
           <div>
             <div class="company">Apple Inc</div>
@@ -284,7 +284,7 @@
         </ul>
       </div>
 
-      <div class="role">
+      <div class="role" data-role>
         <div class="role-top">
           <div>
             <div class="company">Apple Inc</div>
@@ -301,7 +301,7 @@
         </ul>
       </div>
 
-      <div class="role">
+      <div class="role" data-role>
         <div class="role-top">
           <div>
             <div class="company">Starbucks</div>
@@ -361,7 +361,44 @@
   </footer>
 
   <script>
-    document.getElementById('year').textContent = new Date().getFullYear();
-  </script>
+  // Footer year
+  document.getElementById('year').textContent = new Date().getFullYear();
+
+  // Highlight the role whose center is closest to the viewport center
+  const roles = Array.from(document.querySelectorAll('[data-role]'));
+
+  const io = new IntersectionObserver((entries) => {
+    // Find roles that are currently in the "view band"
+    const visible = roles.filter(el => {
+      const r = el.getBoundingClientRect();
+      // considered visible if any part of it is on screen
+      return r.bottom > 0 && r.top < window.innerHeight;
+    });
+
+    if (!visible.length) return;
+
+    const viewportCenter = window.innerHeight / 2;
+    let best = null;
+    let bestDist = Infinity;
+
+    for (const el of visible) {
+      const r = el.getBoundingClientRect();
+      const elCenter = r.top + r.height / 2;
+      const dist = Math.abs(elCenter - viewportCenter);
+      if (dist < bestDist) {
+        bestDist = dist;
+        best = el;
+      }
+    }
+
+    roles.forEach(r => r.classList.toggle('is-active', r === best));
+  }, {
+    // middle band: only really triggers when something is near center
+    rootMargin: "-35% 0px -35% 0px",
+    threshold: [0, 0.25, 0.5, 0.75, 1]
+  });
+
+  roles.forEach(r => io.observe(r));
+</script>
 </body>
 </html>
