@@ -30,7 +30,20 @@
       color: var(--text);
       line-height: 1.65;
     }
+    .nav-resume{
+  color: var(--accent);
+  font-weight: 600;
+  padding: 6px 10px;
+  border: 1px solid rgba(16,185,129,.5);
+  border-radius: 8px;
+  transition: .2s ease;
+}
 
+.nav-resume:hover{
+  background: rgba(16,185,129,.1);
+  border-color: var(--accent);
+  text-decoration: none;
+}
     a{
       color: var(--accent);
       text-decoration: none;
@@ -196,7 +209,11 @@
 <body>
   <div class="nav">
     <div class="wrap">
-      <div class="left">Samuel Carson</div>
+      <div class="left">
+  <a href="SamuelCarsonResume.pdf" target="_blank" class="nav-resume">
+    View Resume
+  </a>
+</div>
       <div class="links">
         <a href="#experience">Experience</a>
         <a href="#education">Education</a>
