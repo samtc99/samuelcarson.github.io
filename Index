@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Samuel Carson</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&display=swap" rel="stylesheet">
+<style>
+body {
+    margin: 0;
+    font-family: 'Inter', sans-serif;
+    background: #0f0f0f;
+    color: #f5f5f5;
+    line-height: 1.6;
+}
+
+section {
+    padding: 80px 10%;
+    max-width: 1000px;
+    margin: auto;
+}
+
+h1 {
+    font-size: 56px;
+    font-weight: 800;
+    margin-bottom: 10px;
+}
+
+h2 {
+    font-size: 28px;
+    margin-top: 60px;
+    margin-bottom: 20px;
+    border-bottom: 1px solid #333;
+    padding-bottom: 10px;
+}
+
+h3 {
+    font-weight: 600;
+    margin-bottom: 5px;
+}
+
+.hero {
+    height: 90vh;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+}
+
+.subtitle {
+    font-size: 20px;
+    color: #aaa;
+}
+
+.job {
+    margin-bottom: 40px;
+}
+
+.company {
+    color: #6ee7ff;
+}
+
+ul {
+    padding-left: 20px;
+}
+
+.footer {
+    text-align: center;
+    padding: 40px;
+    font-size: 14px;
+    color: #777;
+}
+</style>
+</head>
+
+<body>
+
+<section class="hero">
+    <h1>Samuel Carson</h1>
+    <p class="subtitle">People Operations | Experience Builder | Process Designer</p>
+    <p>Seattle, WA</p>
+</section>
+
+<section>
+    <h2>Experience</h2>
+
+    <div class="job">
+        <h3 class="company">WongDoody</h3>
+        <p><strong>HR Associate</strong> | Sept 2022 – Jan 2025</p>
+        <ul>
+            <li>Led onboarding for all new hires across the agency.</li>
+            <li>Built annual review infrastructure across 8 departments.</li>
+            <li>Delivered employee survey data directly to executive leadership.</li>
+            <li>Designed internal communications templates during agency rebrand.</li>
+        </ul>
+    </div>
+
+    <div class="job">
+        <h3 class="company">Slalom Consulting</h3>
+        <p><strong>People Operations Coordinator</strong> | Nov 2021 – Sept 2022</p>
+        <ul>
+            <li>Shifted operating model toward scalable self-service support.</li>
+            <li>Cross-trained team members as global expansion increased.</li>
+        </ul>
+    </div>
+
+    <div class="job">
+        <h3 class="company">Apple</h3>
+        <p><strong>Training Lead</strong> | Dec 2020 – Nov 2021</p>
+        <ul>
+            <li>Trained and developed 170 employees.</li>
+            <li>Onboarded 60 new hires within 2 months.</li>
+            <li>Raised storewide training completion above 90%.</li>
+        </ul>
+    </div>
+</section>
+
+<section>
+    <h2>Skills</h2>
+    <p>
+        People Experience Design · Onboarding Systems · Internal Communications · 
+        Process Optimization · Employee Lifecycle Support · Executive Reporting · 
+        Training & Development · HRIS Systems (Workday, Greenhouse, ServiceNow)
+    </p>
+</section>
+
+<section>
+    <h2>Contact</h2>
+    <p>Email: Samtc99@me.com</p>
+</section>
+
+<div class="footer">
+    © 2026 Samuel Carson
+</div>
+
+</body>
+</html>
