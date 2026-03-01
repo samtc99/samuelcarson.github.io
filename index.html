@@ -42,7 +42,6 @@
       margin: 0 auto;
     }
 
-    /* Minimal top nav (optional but useful on mobile) */
     .nav{
       position: sticky;
       top: 0;
@@ -62,14 +61,11 @@
       font-weight: 600;
       color: var(--muted);
       font-size: 14px;
-      letter-spacing: .2px;
-      white-space: nowrap;
     }
     .nav .links{
       display:flex;
       gap: 14px;
       flex-wrap: wrap;
-      justify-content: flex-end;
       font-size: 14px;
     }
     .nav .links a{
@@ -83,19 +79,18 @@
       text-decoration: none;
     }
 
-    /* Hero */
     header{
-      padding: 28px 0 10px;
+      padding: 20px 0 8px;
     }
     h1{
-      margin: 6px 0 8px;
-      font-size: clamp(42px, 8vw, 78px);
-      line-height: 1.02;
-      letter-spacing: -1.2px;
+      margin: 2px 0 8px;
+      font-size: clamp(46px, 8.5vw, 86px);
+      line-height: 1.0;
+      letter-spacing: -1.6px;
       font-weight: 800;
     }
     .headline{
-      margin: 0 0 18px;
+      margin: 0 0 16px;
       color: var(--muted);
       font-size: clamp(16px, 2.2vw, 20px);
       max-width: 70ch;
@@ -107,22 +102,18 @@
       gap: 10px 16px;
       color: var(--muted);
       font-size: 14px;
-      margin: 0 0 10px;
     }
-    .contact span{
-      display:inline-flex;
-      align-items:center;
-      gap:10px;
+    .contact a{
+      color: var(--text);
+      opacity:.9;
+      border-bottom:1px solid rgba(255,255,255,.2);
     }
-    .dot{
-      width: 4px;
-      height: 4px;
-      border-radius: 999px;
-      background: var(--line);
-      display:inline-block;
+    .contact a:hover{
+      color: var(--accent);
+      border-bottom-color: var(--accent);
+      text-decoration:none;
     }
 
-    /* Sections */
     section{
       padding: 22px 0;
     }
@@ -137,7 +128,6 @@
       padding-bottom: 10px;
     }
 
-    /* Experience blocks (minimal, no cards) */
     .role{
       padding: 16px 0;
       border-bottom: 1px solid var(--line);
@@ -155,17 +145,13 @@
     .company{
       font-weight: 700;
       font-size: 18px;
-      color: var(--text);
     }
     .title{
       font-weight: 600;
-      color: var(--text);
-      opacity: .95;
     }
     .dates{
       color: var(--muted);
       font-size: 14px;
-      white-space: nowrap;
     }
     .desc{
       margin: 10px 0 0;
@@ -175,14 +161,12 @@
     ul{
       margin: 10px 0 0;
       padding-left: 18px;
-      color: var(--text);
     }
     li{
       margin: 8px 0;
       color: var(--muted);
     }
 
-    /* Skills as simple paragraphs to keep resume feel */
     .skills p{
       margin: 0 0 12px;
       color: var(--muted);
@@ -196,12 +180,6 @@
       border-top: 1px solid var(--line);
       margin-top: 10px;
     }
-
-    @media (min-width: 760px){
-      header{ padding: 34px 0 10px; }
-      section{ padding: 26px 0; }
-      .role{ padding: 18px 0; }
-    }
   </style>
 </head>
 
@@ -213,7 +191,6 @@
         <a href="#experience">Experience</a>
         <a href="#education">Education</a>
         <a href="#skills">Skills</a>
-        <a href="#contact">Contact</a>
       </div>
     </div>
   </div>
@@ -222,10 +199,9 @@
     <h1>Samuel Carson</h1>
     <p class="headline">People Operations • HR • Training & Development</p>
 
-    <div class="contact" id="contact">
-      <span>206-866-8698</span><span class="dot"></span>
-      <span>Seattle, WA</span><span class="dot"></span>
-      <span><a href="mailto:Samtc99@me.com">Samtc99@me.com</a></span>
+    <div class="contact">
+      206-866-8698 · Seattle, WA · 
+      <a href="mailto:Samtc99@me.com">Samtc99@me.com</a>
     </div>
   </header>
 
@@ -243,18 +219,17 @@
         </div>
 
         <p class="desc">
-          Worked as an HR Associate on a small operations team at WongDoody, a global marketing agency headquartered here in Seattle.
-          Had a large scope of support from onboarding, employee records, benefits, payroll, L&amp;D, technical support, and recruiting
-          with our Talent Acquisition Team.
+          Worked as an HR Associate on a small operations team at WongDoody, a global marketing agency headquartered in Seattle. 
+          Supported onboarding, employee records, benefits, payroll, L&D, technical support, and recruiting in partnership with the Talent Acquisition team.
         </p>
 
         <ul>
-          <li>Oversaw all inter-agency communications from People Team, designed and implemented new templates for branding refresh in mid 2023.</li>
-          <li>Built out yearly review infrastructure, including 8 unique review decks for different departments across the agency. Was responsible for overseeing the review process from a technical standpoint in making sure each employee’s experience was flawless and easy.</li>
-          <li>Frequently carried out company wide survey’s, delivering data to company shareholders such as the CEO and Head of People.</li>
-          <li>Lead both in person and virtual onboarding for all new employees. Worked with hiring managers to put together robust two week schedule for hires, including scheduling IT trainings, team meetings, out of office activities, and 1:1 meetings with existing team members.</li>
-          <li>Oversaw the organization of all employee files and records.</li>
-          <li>Facilitated exit interviews and paperwork for employees departing the company.</li>
+          <li>Oversaw all inter-agency communications from the People Team; designed and implemented new templates during the 2023 branding refresh.</li>
+          <li>Built annual review infrastructure including 8 department-specific review decks and managed the full review process to ensure a seamless employee experience.</li>
+          <li>Conducted company-wide surveys and delivered insights to executive leadership including the CEO and Head of People.</li>
+          <li>Led both in-person and virtual onboarding; partnered with hiring managers to build structured two-week onboarding schedules for all new hires.</li>
+          <li>Maintained organization of all employee files and records across systems.</li>
+          <li>Facilitated exit interviews and managed all offboarding documentation and processes.</li>
         </ul>
       </div>
 
@@ -268,15 +243,14 @@
         </div>
 
         <p class="desc">
-          Previously worked as a part of Slalom Consultings Global PeopleOne Team. Acting as the first point of contact for internal HR
-          inquiries around the employee lifecycle. Assisting in revamps of internal processes and working alongside a small people team
-          to grow and scale our support to meet business needs. Collaborating frequently with other internal teams such as Onboarding
-          Operations to best meet needs of new hires, ensuring a successful start for all employees.
+          Served on Slalom’s Global PeopleOne team as a primary contact for employee lifecycle support. Assisted in evolving internal processes 
+          and scaling support systems to meet business growth.
         </p>
 
         <ul>
-          <li>Worked to help reimagine the employee support experience by shifting our teams operating model to champion self service and provide easy to access, region specific resources for all employee FAQs.</li>
-          <li>Cross trained new employees as business expands into new markets across the globe.</li>
+          <li>Acted as a primary point of contact for global employee lifecycle inquiries.</li>
+          <li>Helped shift the team’s operating model toward scalable self-service resources and region-specific documentation.</li>
+          <li>Cross-trained new team members as the business expanded into new global markets.</li>
         </ul>
       </div>
 
@@ -289,16 +263,11 @@
           <div class="dates">December 2020 – November 2021</div>
         </div>
 
-        <p class="desc">
-          Lead the training and development of 170 employees located at Apple’s University Village flagship store. Responsible for coaching
-          and mentoring all new hires. Communicate with viable stakeholders within Apple leadership to align and plan the implementation of
-          required training curriculum in a timely manner.
-        </p>
-
         <ul>
-          <li>Spearheaded the onboarding of 60 total new hires within 2 months in time for fall launch of new products.</li>
-          <li>Successfully implemented and facilitated hiring events for new employees across several Apple Stores.</li>
-          <li>Restructured methods of training that took completion percentages for entire store to upwards of 90%.</li>
+          <li>Led training and development for 170 employees at Apple’s University Village flagship location.</li>
+          <li>Spearheaded onboarding for 60 new hires within a two-month period supporting major product launches.</li>
+          <li>Implemented and facilitated hiring and training events across multiple Apple store locations.</li>
+          <li>Redesigned training methods, increasing storewide completion rates to over 90%.</li>
         </ul>
       </div>
 
@@ -311,16 +280,11 @@
           <div class="dates">February 2019 – December 2020</div>
         </div>
 
-        <p class="desc">
-          Worked as a specialist in the stores product zone. Responsible for providing our customers with the most exceptional service.
-          Worked on stores visual team, and was entrusted for many visual merchandising responsibilities. Led overnight product launches
-          and worked with global visuals teams to implement storewide changes.
-        </p>
-
         <ul>
-          <li>Regularly led sales team in metrics surrounding business engagement.</li>
-          <li>Managed time efficiently to complete visuals merchandising tasks on a consistent basis.</li>
-          <li>Demonstrated incredible customer focus and attained a 90 overall team member score in career at Apple.</li>
+          <li>Delivered high-level customer experiences while supporting sales performance and engagement metrics.</li>
+          <li>Selected for the store’s visual team and entrusted with key merchandising responsibilities.</li>
+          <li>Led overnight product launches and partnered with global visual teams to implement storewide updates.</li>
+          <li>Maintained a 90 overall team member performance score throughout tenure.</li>
         </ul>
       </div>
 
@@ -333,10 +297,10 @@
           <div class="dates">Jan 2017 – June 2018</div>
         </div>
 
-        <p class="desc">
-          Learned viable skills like multitasking in fast paced environments while providing high level customer experience. Collaborated within
-          a diverse team, set goals and problem solved to operate efficiently and ensure success.
-        </p>
+        <ul>
+          <li>Developed strong multitasking and customer experience skills in a fast-paced retail environment.</li>
+          <li>Collaborated within a diverse team to meet operational goals and deliver consistent service.</li>
+        </ul>
       </div>
     </section>
 
@@ -347,9 +311,9 @@
         <div class="role-top">
           <div>
             <div class="company">Seattle Pacific University</div>
-            <div class="title">Bachelor of History &amp; Education</div>
+            <div class="title">Bachelor of History & Education</div>
           </div>
-          <div class="dates">September 2018</div>
+          <div class="dates">2018</div>
         </div>
       </div>
 
@@ -357,9 +321,9 @@
         <div class="role-top">
           <div>
             <div class="company">University of Southern New Hampshire</div>
-            <div class="title">Bachelor of History &amp; Education</div>
+            <div class="title">Bachelor of History & Education</div>
           </div>
-          <div class="dates">May 2020 – Present</div>
+          <div class="dates">In Progress</div>
         </div>
       </div>
     </section>
@@ -368,13 +332,13 @@
       <h2>Skills</h2>
 
       <p>
-        Ability to easily build rapport, efficient multitasker, passion for people, love for educating, strong customer service background,
-        inventory control, project management, presenting, communicating with relevant stakeholders, retail and corporate experience.
+        Strong ability to build rapport, manage multiple priorities, and communicate effectively across teams. 
+        Passionate about people development, education, and creating positive employee experiences.
       </p>
 
       <p>
-        Strong knowledge in a wide variety of digital software and technologies including Workday, Paylocity, FreshService, Greenhouse,
-        ServiceNow, Pages, Keynote, &amp; Numbers, Microsoft Apps, Adobe products, Windows, MacOS, iOS, and SO much more!
+        Experienced across Workday, Paylocity, FreshService, Greenhouse, ServiceNow, Microsoft Office, Adobe tools, 
+        and Apple productivity software. Comfortable across both MacOS and Windows environments.
       </p>
     </section>
   </main>
