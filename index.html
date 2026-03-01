@@ -1,136 +1,511 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Samuel Carson</title>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&display=swap" rel="stylesheet">
-<style>
-body {
-    margin: 0;
-    font-family: 'Inter', sans-serif;
-    background: #0f0f0f;
-    color: #f5f5f5;
-    line-height: 1.6;
-}
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Samuel Carson</title>
 
-section {
-    padding: 80px 10%;
-    max-width: 1000px;
-    margin: auto;
-}
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&display=swap" rel="stylesheet">
 
-h1 {
-    font-size: 56px;
-    font-weight: 800;
-    margin-bottom: 10px;
-}
+  <style>
+    :root{
+      --bg:#0b0c10;
+      --card:#10121a;
+      --text:#f4f6ff;
+      --muted:rgba(244,246,255,.72);
+      --dim:rgba(244,246,255,.55);
+      --line:rgba(255,255,255,.10);
+      --accent:#67e8f9; /* cyan */
+      --accent2:#a78bfa; /* violet */
+      --max:980px;
+      --pad:20px;
+      --radius:18px;
+      --shadow: 0 20px 60px rgba(0,0,0,.45);
+    }
 
-h2 {
-    font-size: 28px;
-    margin-top: 60px;
-    margin-bottom: 20px;
-    border-bottom: 1px solid #333;
-    padding-bottom: 10px;
-}
+    *{ box-sizing:border-box; }
+    html{ scroll-behavior:smooth; }
+    body{
+      margin:0;
+      font-family:Inter, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+      background: radial-gradient(900px 700px at 20% 0%, rgba(103,232,249,.16), transparent 55%),
+                  radial-gradient(800px 650px at 90% 10%, rgba(167,139,250,.14), transparent 60%),
+                  var(--bg);
+      color:var(--text);
+      line-height:1.55;
+    }
 
-h3 {
-    font-weight: 600;
-    margin-bottom: 5px;
-}
+    /* container */
+    .wrap{
+      width:min(var(--max), calc(100% - 2*var(--pad)));
+      margin:0 auto;
+    }
 
-.hero {
-    height: 90vh;
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-}
+    /* sticky nav */
+    .nav{
+      position:sticky;
+      top:0;
+      z-index:50;
+      backdrop-filter: blur(12px);
+      background: linear-gradient(to bottom, rgba(11,12,16,.85), rgba(11,12,16,.55));
+      border-bottom:1px solid var(--line);
+    }
+    .nav-inner{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      padding:14px 0;
+      gap:12px;
+    }
+    .brand{
+      display:flex;
+      align-items:center;
+      gap:10px;
+      font-weight:700;
+      letter-spacing:.2px;
+      white-space:nowrap;
+    }
+    .dot{
+      width:10px;height:10px;border-radius:999px;
+      background: conic-gradient(from 180deg, var(--accent), var(--accent2), var(--accent));
+      box-shadow: 0 0 18px rgba(103,232,249,.45);
+    }
+    .links{
+      display:flex;
+      gap:16px;
+      flex-wrap:wrap;
+      justify-content:flex-end;
+    }
+    .links a{
+      color:var(--muted);
+      text-decoration:none;
+      font-size:14px;
+      padding:8px 10px;
+      border-radius:12px;
+      border:1px solid transparent;
+      transition: all .2s ease;
+    }
+    .links a:hover{
+      color:var(--text);
+      border-color:var(--line);
+      background:rgba(255,255,255,.04);
+    }
 
-.subtitle {
-    font-size: 20px;
-    color: #aaa;
-}
+    /* hero */
+    header{
+      padding:54px 0 14px;
+    }
+    .hero{
+      position:relative;
+      padding:38px 0 10px;
+    }
+    .kicker{
+      display:inline-flex;
+      align-items:center;
+      gap:10px;
+      padding:8px 12px;
+      border:1px solid var(--line);
+      border-radius:999px;
+      background:rgba(255,255,255,.03);
+      color:var(--muted);
+      font-size:13px;
+    }
+    h1{
+      margin:16px 0 10px;
+      font-size: clamp(44px, 8vw, 78px);
+      line-height: 1.02;
+      letter-spacing:-1.2px;
+    }
+    .sub{
+      margin:0;
+      max-width: 62ch;
+      color:var(--muted);
+      font-size: clamp(16px, 2.2vw, 20px);
+    }
+    .meta{
+      margin-top:18px;
+      display:flex;
+      flex-wrap:wrap;
+      gap:10px;
+      color:var(--dim);
+      font-size:14px;
+    }
+    .pill{
+      border:1px solid var(--line);
+      background:rgba(255,255,255,.03);
+      padding:8px 12px;
+      border-radius:999px;
+    }
+    .cta-row{
+      margin-top:18px;
+      display:flex;
+      gap:12px;
+      flex-wrap:wrap;
+      align-items:center;
+    }
+    .btn{
+      display:inline-flex;
+      align-items:center;
+      gap:10px;
+      padding:10px 14px;
+      border-radius:14px;
+      text-decoration:none;
+      border:1px solid var(--line);
+      color:var(--text);
+      background: rgba(255,255,255,.04);
+      transition: transform .15s ease, background .15s ease, border-color .15s ease;
+    }
+    .btn:hover{
+      transform: translateY(-1px);
+      background: rgba(255,255,255,.06);
+      border-color: rgba(255,255,255,.18);
+    }
+    .btn.primary{
+      border-color: rgba(103,232,249,.35);
+      background: linear-gradient(135deg, rgba(103,232,249,.18), rgba(167,139,250,.14));
+      box-shadow: 0 18px 40px rgba(0,0,0,.35);
+    }
 
-.job {
-    margin-bottom: 40px;
-}
+    /* sections */
+    section{
+      padding: 36px 0;
+    }
+    .grid{
+      display:grid;
+      gap:14px;
+    }
+    .section-title{
+      display:flex;
+      align-items:flex-end;
+      justify-content:space-between;
+      gap:14px;
+      margin:0 0 12px;
+      padding-bottom:10px;
+      border-bottom:1px solid var(--line);
+    }
+    .section-title h2{
+      margin:0;
+      font-size: 18px;
+      letter-spacing: .4px;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+    .hint{
+      font-size:13px;
+      color: var(--dim);
+      margin:0;
+      text-align:right;
+    }
 
-.company {
-    color: #6ee7ff;
-}
+    /* cards */
+    .card{
+      background: linear-gradient(180deg, rgba(255,255,255,.04), rgba(255,255,255,.02));
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      padding: 16px 16px 14px;
+      box-shadow: var(--shadow);
+      overflow:hidden;
+      position:relative;
+    }
+    .card::before{
+      content:"";
+      position:absolute;
+      inset:-2px;
+      background: radial-gradient(600px 220px at 10% 0%, rgba(103,232,249,.14), transparent 50%),
+                  radial-gradient(520px 220px at 90% 0%, rgba(167,139,250,.12), transparent 55%);
+      opacity:.7;
+      pointer-events:none;
+    }
+    .card > *{ position:relative; }
 
-ul {
-    padding-left: 20px;
-}
+    .row{
+      display:flex;
+      justify-content:space-between;
+      gap:12px;
+      flex-wrap:wrap;
+      align-items:baseline;
+    }
+    .company{
+      font-weight:800;
+      letter-spacing:-.2px;
+      font-size:18px;
+    }
+    .role{
+      color:var(--muted);
+      font-weight:600;
+    }
+    .date{
+      color:var(--dim);
+      font-size:14px;
+      white-space:nowrap;
+    }
+    .bullets{
+      margin:12px 0 0;
+      padding-left:18px;
+      color:var(--muted);
+    }
+    .bullets li{
+      margin:8px 0;
+    }
 
-.footer {
-    text-align: center;
-    padding: 40px;
-    font-size: 14px;
-    color: #777;
-}
-</style>
+    /* skills */
+    .skillset{
+      display:flex;
+      flex-wrap:wrap;
+      gap:10px;
+    }
+    .tag{
+      font-size:13px;
+      color:var(--muted);
+      border:1px solid var(--line);
+      background:rgba(255,255,255,.03);
+      padding:8px 10px;
+      border-radius:999px;
+    }
+
+    /* footer */
+    footer{
+      padding: 34px 0 44px;
+      color: rgba(244,246,255,.45);
+      font-size:13px;
+      text-align:center;
+      border-top: 1px solid var(--line);
+      margin-top: 20px;
+    }
+
+    /* reveal animation */
+    .reveal{
+      opacity:0;
+      transform: translateY(10px);
+      transition: opacity .55s ease, transform .55s ease;
+    }
+    .reveal.on{
+      opacity:1;
+      transform: translateY(0);
+    }
+
+    @media (min-width: 760px){
+      section{ padding: 44px 0; }
+      .grid{ gap: 16px; }
+      .card{ padding:18px 18px 16px; }
+    }
+  </style>
 </head>
 
 <body>
-
-<section class="hero">
-    <h1>Samuel Carson</h1>
-    <p class="subtitle">People Operations | Experience Builder | Process Designer</p>
-    <p>Seattle, WA</p>
-</section>
-
-<section>
-    <h2>Experience</h2>
-
-    <div class="job">
-        <h3 class="company">WongDoody</h3>
-        <p><strong>HR Associate</strong> | Sept 2022 – Jan 2025</p>
-        <ul>
-            <li>Led onboarding for all new hires across the agency.</li>
-            <li>Built annual review infrastructure across 8 departments.</li>
-            <li>Delivered employee survey data directly to executive leadership.</li>
-            <li>Designed internal communications templates during agency rebrand.</li>
-        </ul>
+  <div class="nav">
+    <div class="wrap nav-inner">
+      <div class="brand"><span class="dot"></span> Samuel Carson</div>
+      <div class="links">
+        <a href="#experience">Experience</a>
+        <a href="#education">Education</a>
+        <a href="#skills">Skills</a>
+        <a href="#contact">Contact</a>
+      </div>
     </div>
+  </div>
 
-    <div class="job">
-        <h3 class="company">Slalom Consulting</h3>
-        <p><strong>People Operations Coordinator</strong> | Nov 2021 – Sept 2022</p>
-        <ul>
-            <li>Shifted operating model toward scalable self-service support.</li>
-            <li>Cross-trained team members as global expansion increased.</li>
-        </ul>
+  <header class="wrap">
+    <div class="hero reveal">
+      <div class="kicker"><span class="dot" style="width:8px;height:8px"></span> People Ops • Experience • Process</div>
+      <h1>Make work feel<br/>frictionless.</h1>
+      <p class="sub">
+        People Operations specialist with experience building onboarding systems, internal comms, and scalable employee support.
+      </p>
+
+      <div class="meta">
+        <div class="pill">Seattle, WA</div>
+        <div class="pill">HR / People Ops</div>
+        <div class="pill">Onboarding + Enablement</div>
+      </div>
+
+      <div class="cta-row">
+        <a class="btn primary" href="#contact">Contact</a>
+        <a class="btn" href="#experience">See experience ↓</a>
+      </div>
     </div>
+  </header>
 
-    <div class="job">
-        <h3 class="company">Apple</h3>
-        <p><strong>Training Lead</strong> | Dec 2020 – Nov 2021</p>
-        <ul>
-            <li>Trained and developed 170 employees.</li>
-            <li>Onboarded 60 new hires within 2 months.</li>
-            <li>Raised storewide training completion above 90%.</li>
-        </ul>
-    </div>
-</section>
+  <main class="wrap">
 
-<section>
-    <h2>Skills</h2>
-    <p>
-        People Experience Design · Onboarding Systems · Internal Communications · 
-        Process Optimization · Employee Lifecycle Support · Executive Reporting · 
-        Training & Development · HRIS Systems (Workday, Greenhouse, ServiceNow)
-    </p>
-</section>
+    <section id="experience">
+      <div class="section-title">
+        <h2>Experience</h2>
+        <p class="hint">Systems, comms, onboarding, operations</p>
+      </div>
 
-<section>
-    <h2>Contact</h2>
-    <p>Email: Samtc99@me.com</p>
-</section>
+      <div class="grid">
+        <div class="card reveal">
+          <div class="row">
+            <div>
+              <div class="company">WongDoody</div>
+              <div class="role">HR Associate</div>
+            </div>
+            <div class="date">Sept 2022 — Jan 2025</div>
+          </div>
+          <ul class="bullets">
+            <li>Owned onboarding (in-person + virtual) and built robust two-week start plans with hiring managers.</li>
+            <li>Designed and implemented new branded People Team comms templates during 2023 refresh.</li>
+            <li>Built annual review infrastructure (8 department-specific decks) and ensured flawless employee UX.</li>
+            <li>Ran company-wide surveys and delivered insights to senior leadership (CEO + Head of People).</li>
+            <li>Maintained employee records/files; supported benefits, payroll, L&D, and exit processes.</li>
+          </ul>
+        </div>
 
-<div class="footer">
-    © 2026 Samuel Carson
-</div>
+        <div class="card reveal">
+          <div class="row">
+            <div>
+              <div class="company">Slalom Consulting</div>
+              <div class="role">People Operations Coordinator</div>
+            </div>
+            <div class="date">Nov 2021 — Sept 2022</div>
+          </div>
+          <ul class="bullets">
+            <li>First point of contact for employee lifecycle inquiries on the Global PeopleOne team.</li>
+            <li>Helped shift support model toward self-service with region-specific resources and FAQs.</li>
+            <li>Partnered with Onboarding Operations to ensure consistent, high-quality new-hire starts.</li>
+            <li>Cross-trained new team members as the business expanded into new markets.</li>
+          </ul>
+        </div>
 
+        <div class="card reveal">
+          <div class="row">
+            <div>
+              <div class="company">Apple</div>
+              <div class="role">Training Lead</div>
+            </div>
+            <div class="date">Dec 2020 — Nov 2021</div>
+          </div>
+          <ul class="bullets">
+            <li>Led training and development for ~170 employees at University Village flagship store.</li>
+            <li>Onboarded 60 new hires in two months to support fall product launches.</li>
+            <li>Restructured training methods to push completion rates above 90%.</li>
+            <li>Partnered with leadership to plan and deliver required curriculum on schedule.</li>
+          </ul>
+        </div>
+
+        <div class="card reveal">
+          <div class="row">
+            <div>
+              <div class="company">Apple</div>
+              <div class="role">Specialist</div>
+            </div>
+            <div class="date">Feb 2019 — Dec 2020</div>
+          </div>
+          <ul class="bullets">
+            <li>Delivered high-touch customer experiences and supported sales floor performance metrics.</li>
+            <li>Trusted with visual merchandising responsibilities and storewide change implementations.</li>
+            <li>Led overnight launches; maintained strong customer focus and a 90 team member score.</li>
+          </ul>
+        </div>
+
+        <div class="card reveal">
+          <div class="row">
+            <div>
+              <div class="company">Starbucks</div>
+              <div class="role">Barista</div>
+            </div>
+            <div class="date">Jan 2017 — Jun 2018</div>
+          </div>
+          <ul class="bullets">
+            <li>Built multitasking and customer experience fundamentals in a fast-paced environment.</li>
+            <li>Collaborated on goals, problem-solving, and team operations to ensure daily success.</li>
+          </ul>
+        </div>
+
+      </div>
+    </section>
+
+    <section id="education">
+      <div class="section-title">
+        <h2>Education</h2>
+        <p class="hint">Background + continuing study</p>
+      </div>
+
+      <div class="grid">
+        <div class="card reveal">
+          <div class="row">
+            <div>
+              <div class="company">Seattle Pacific University</div>
+              <div class="role">Bachelor of History & Education</div>
+            </div>
+            <div class="date">Sept 2018</div>
+          </div>
+        </div>
+
+        <div class="card reveal">
+          <div class="row">
+            <div>
+              <div class="company">Southern New Hampshire University</div>
+              <div class="role">Bachelor of History & Education</div>
+            </div>
+            <div class="date">May 2020 — Present</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="skills">
+      <div class="section-title">
+        <h2>Skills</h2>
+        <p class="hint">Tools + strengths</p>
+      </div>
+
+      <div class="card reveal">
+        <div class="skillset">
+          <span class="tag">Onboarding Systems</span>
+          <span class="tag">Employee Lifecycle Support</span>
+          <span class="tag">Internal Communications</span>
+          <span class="tag">Process Design</span>
+          <span class="tag">Training & Development</span>
+          <span class="tag">Executive Reporting</span>
+          <span class="tag">Project Management</span>
+          <span class="tag">Stakeholder Communication</span>
+          <span class="tag">Workday</span>
+          <span class="tag">Paylocity</span>
+          <span class="tag">ServiceNow</span>
+          <span class="tag">Greenhouse</span>
+          <span class="tag">Adobe</span>
+          <span class="tag">Microsoft Apps</span>
+          <span class="tag">MacOS / iOS</span>
+        </div>
+      </div>
+    </section>
+
+    <section id="contact">
+      <div class="section-title">
+        <h2>Contact</h2>
+        <p class="hint">Let’s connect</p>
+      </div>
+
+      <div class="card reveal">
+        <p style="margin:0;color:var(--muted);">
+          Email: <a href="mailto:Samtc99@me.com" style="color:var(--accent);text-decoration:none;">Samtc99@me.com</a><br/>
+          Location: Seattle, WA
+        </p>
+      </div>
+    </section>
+
+  </main>
+
+  <footer class="wrap">
+    © <span id="year"></span> Samuel Carson • Built on GitHub Pages
+  </footer>
+
+  <script>
+    // Reveal on scroll
+    const els = document.querySelectorAll('.reveal');
+    const io = new IntersectionObserver((entries) => {
+      entries.forEach(e => {
+        if (e.isIntersecting) e.target.classList.add('on');
+      });
+    }, { threshold: 0.12 });
+    els.forEach(el => io.observe(el));
+
+    // Footer year
+    document.getElementById('year').textContent = new Date().getFullYear();
+  </script>
 </body>
 </html>
