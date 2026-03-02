@@ -83,7 +83,15 @@
 .role.is-active .dates{
   color: var(--accent);
 }
+/* Spotlight for sections like Skills */
+section.is-active{
+  opacity: 1;
+}
 
+section[data-role]{
+  opacity: .55;
+  transition: opacity .25s ease;
+}
 /* Smooth date transition */
 .dates{
   transition: color .25s ease;
@@ -379,43 +387,43 @@ h1::after{
       </div>
     </section>
 
-    <section id="education">
-      <h2>Education</h2>
+   <section id="education">
+  <h2>Education</h2>
 
-      <div class="role">
-        <div class="role-top">
-          <div>
-            <div class="company">Seattle Pacific University</div>
-            <div class="title">Bachelor of History & Education</div>
-          </div>
-          <div class="dates">2018</div>
-        </div>
+  <div class="role" data-role>
+    <div class="role-top">
+      <div>
+        <div class="company">Seattle Pacific University</div>
+        <div class="title">Bachelor of History &amp; Education</div>
       </div>
+      <div class="dates">2018</div>
+    </div>
+  </div>
 
-      <div class="role">
-        <div class="role-top">
-          <div>
-            <div class="company">University of Southern New Hampshire</div>
-            <div class="title">Bachelor of History & Education</div>
-          </div>
-          <div class="dates">In Progress</div>
-        </div>
+  <div class="role" data-role>
+    <div class="role-top">
+      <div>
+        <div class="company">University of Southern New Hampshire</div>
+        <div class="title">Bachelor of History &amp; Education</div>
       </div>
-    </section>
+      <div class="dates">In Progress</div>
+    </div>
+  </div>
+</section>
 
-    <section id="skills" class="skills">
-      <h2>Skills</h2>
+<section id="skills" class="skills" data-role>
+  <h2>Skills</h2>
 
-      <p>
-        Strong ability to build rapport, manage multiple priorities, and communicate effectively across teams. 
-        Passionate about people development, education, and creating positive employee experiences.
-      </p>
+  <p>
+    Strong ability to build rapport, manage multiple priorities, and communicate effectively across teams.
+    Passionate about people development, education, and creating positive employee experiences.
+  </p>
 
-      <p>
-        Experienced across Workday, Paylocity, FreshService, Greenhouse, ServiceNow, Microsoft Office, Adobe tools, 
-        and Apple productivity software. Comfortable across both MacOS and Windows environments.
-      </p>
-    </section>
+  <p>
+    Experienced across Workday, Paylocity, FreshService, Greenhouse, ServiceNow, Microsoft Office, Adobe tools,
+    and Apple productivity software. Comfortable across both MacOS and Windows environments.
+  </p>
+</section>
   </main>
 
   <footer class="wrap">
