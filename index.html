@@ -63,6 +63,31 @@
 .dates{
   transition: color .25s ease;
 }
+    /* Spotlight effect: dim non-active roles */
+.role{
+  opacity: .55;
+  transition: opacity .25s ease;
+}
+
+/* Keep the currently viewed role bright */
+.role.is-active{
+  opacity: 1;
+}
+
+/* Optional: make active company name a touch brighter */
+.role.is-active .company{
+  color: var(--text);
+}
+
+/* You already have this, but keep it (active dates green) */
+.role.is-active .dates{
+  color: var(--accent);
+}
+
+/* Smooth date transition */
+.dates{
+  transition: color .25s ease;
+}
     .nav{
       position: sticky;
       top: 0;
