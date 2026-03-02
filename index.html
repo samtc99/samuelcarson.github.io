@@ -76,6 +76,23 @@
       padding: 16px 0;
       border-bottom: 1px solid var(--line);
     }
+    /* When a section (like Skills) becomes active — fully brighten text */
+section.is-active{
+  opacity: 1;
+}
+
+/* brighten text inside active Skills/Education section */
+section.is-active p,
+section.is-active li,
+section.is-active .title{
+  color: var(--text);
+}
+
+/* keep secondary tone slightly muted but readable */
+section.is-active h2{
+  color: var(--text);
+  border-bottom-color: rgba(255,255,255,.15);
+}
     .role:last-child{ border-bottom: none; }
     .role.is-active{ opacity: 1; }
 
