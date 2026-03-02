@@ -30,20 +30,7 @@
       color: var(--text);
       line-height: 1.65;
     }
-    .nav-resume{
-  color: var(--accent);
-  font-weight: 600;
-  padding: 6px 10px;
-  border: 1px solid rgba(16,185,129,.5);
-  border-radius: 8px;
-  transition: .2s ease;
-}
 
-.nav-resume:hover{
-  background: rgba(16,185,129,.1);
-  border-color: var(--accent);
-  text-decoration: none;
-}
     a{
       color: var(--accent);
       text-decoration: none;
@@ -54,48 +41,67 @@
       width: min(var(--max), calc(100% - 2*var(--pad)));
       margin: 0 auto;
     }
-    /* Active experience date turns green when centered */
-.role.is-active .dates{
-  color: var(--accent);
-}
 
-/* Smooth transition so it fades to green nicely */
-.dates{
-  transition: color .25s ease;
-}
+    /* Small separator dot used in header contact row */
+    .dot{
+      width:4px;
+      height:4px;
+      border-radius:999px;
+      background: var(--line);
+      display:inline-block;
+      opacity:.9;
+    }
+
+    /* Nav resume button */
+    .nav-resume{
+      color: var(--accent);
+      font-weight: 600;
+      padding: 6px 10px;
+      border: 1px solid rgba(16,185,129,.5);
+      border-radius: 8px;
+      transition: .2s ease;
+      text-decoration: none;
+      display:inline-block;
+    }
+    .nav-resume:hover{
+      background: rgba(16,185,129,.1);
+      border-color: var(--accent);
+      text-decoration: none;
+    }
+
     /* Spotlight effect: dim non-active roles */
-.role{
-  opacity: .55;
-  transition: opacity .25s ease;
-}
+    .role{
+      opacity: .55;
+      transition: opacity .25s ease;
+      padding: 16px 0;
+      border-bottom: 1px solid var(--line);
+    }
+    .role:last-child{ border-bottom: none; }
+    .role.is-active{ opacity: 1; }
 
-/* Keep the currently viewed role bright */
-.role.is-active{
-  opacity: 1;
-}
+    /* Active date turns green */
+    .role.is-active .dates{
+      color: var(--accent);
+    }
 
-/* Optional: make active company name a touch brighter */
-.role.is-active .company{
-  color: var(--text);
-}
+    /* Smooth date transition */
+    .dates{
+      transition: color .25s ease;
+      color: var(--muted);
+      font-size: 14px;
+      white-space: nowrap;
+    }
 
-/* You already have this, but keep it (active dates green) */
-.role.is-active .dates{
-  color: var(--accent);
-}
-/* Spotlight for sections like Skills */
-section.is-active{
-  opacity: 1;
-}
+    /* Spotlight for sections like Skills (sections aren't .role) */
+    section[data-role]{
+      opacity: .55;
+      transition: opacity .25s ease;
+    }
+    section.is-active{
+      opacity: 1;
+    }
 
-section[data-role]{
-  opacity: .55;
-  transition: opacity .25s ease;
-}
-/* Smooth date transition */
-.dates{
-  transition: color .25s ease;
-}
+    /* Nav */
     .nav{
       position: sticky;
       top: 0;
@@ -133,63 +139,63 @@ section[data-role]{
       text-decoration: none;
     }
 
-     header{
-    padding: 60px 0 30px;
-    text-align: center;
+    /* Header */
+    header{
+      padding: 60px 0 30px;
+      text-align: center;
     }
-  h1{
-  margin: 0 auto 8px;
-  font-size: clamp(54px, 9vw, 96px);
-  line-height: 1;
-  letter-spacing: -1.8px;
-  font-weight: 800;
-  text-align:center;
-  width:100%;
-  display:block;
-  position:relative;
-}
-/* centered green accent line */
-h1::after{
-  content:"";
-  display:block;
-  width: min(92%, 740px);
-  height: 3px;
-  background: var(--accent);
-  margin: 20px auto 20px;
-  border-radius: 3px;
+    h1{
+      margin: 0 auto 8px;
+      font-size: clamp(54px, 9vw, 96px);
+      line-height: 1;
+      letter-spacing: -1.8px;
+      font-weight: 800;
+      text-align:center;
+      width:100%;
+      display:block;
+      position:relative;
     }
+    h1::after{
+      content:"";
+      display:block;
+      width: min(92%, 740px);
+      height: 3px;
+      background: var(--accent);
+      margin: 20px auto 20px;
+      border-radius: 3px;
+    }
+
     .headline{
-  margin: 0 auto 18px;
-  color: var(--muted);
-  font-size: clamp(16px, 2.2vw, 20px);
-  text-align:center;
-  max-width: 700px;
+      margin: 0 auto 18px;
+      color: var(--muted);
+      font-size: clamp(16px, 2.2vw, 20px);
+      text-align:center;
+      max-width: 700px;
     }
 
     .contact{
-  display:flex;
-  justify-content:center;   /* centers the whole line */
-  align-items:center;
-  flex-wrap:wrap;
-  gap: 10px 18px;
-  color: var(--muted);
-  font-size: 14px;
-  margin-top: 10px;
-}
+      display:flex;
+      justify-content:center;
+      align-items:center;
+      flex-wrap:wrap;
+      gap: 10px 18px;
+      color: var(--muted);
+      font-size: 14px;
+      margin-top: 10px;
+    }
+    .contact a{
+      color: var(--text);
+      opacity:.9;
+      border-bottom:1px solid rgba(255,255,255,.25);
+      padding-bottom:2px;
+    }
+    .contact a:hover{
+      color: var(--accent);
+      border-bottom-color: var(--accent);
+      text-decoration:none;
+    }
 
-.contact a{
-  color: var(--text);
-  opacity:.9;
-  border-bottom:1px solid rgba(255,255,255,.25);
-  padding-bottom:2px;
-}
-
-.contact a:hover{
-  color: var(--accent);
-  border-bottom-color: var(--accent);
-  text-decoration:none;
-}
-
+    /* Sections */
     section{
       padding: 22px 0;
     }
@@ -203,12 +209,6 @@ h1::after{
       border-bottom: 1px solid var(--line);
       padding-bottom: 10px;
     }
-
-    .role{
-      padding: 16px 0;
-      border-bottom: 1px solid var(--line);
-    }
-    .role:last-child{ border-bottom: none; }
 
     .role-top{
       display:flex;
@@ -224,10 +224,6 @@ h1::after{
     }
     .title{
       font-weight: 600;
-    }
-    .dates{
-      color: var(--muted);
-      font-size: 14px;
     }
     .desc{
       margin: 10px 0 0;
@@ -263,10 +259,8 @@ h1::after{
   <div class="nav">
     <div class="wrap">
       <div class="left">
-  <a href="SamuelCarsonResume.pdf" target="_blank" class="nav-resume">
-    View Resume
-  </a>
-</div>
+        <a href="SamuelCarsonResume.pdf" target="_blank" class="nav-resume">View Resume</a>
+      </div>
       <div class="links">
         <a href="#experience">Experience</a>
         <a href="#education">Education</a>
@@ -277,15 +271,15 @@ h1::after{
 
   <header class="wrap">
     <h1>Samuel Carson</h1>
-    <p class="headline">People Operations • L&D • Business Development</p>
+    <p class="headline">People Operations • L&amp;D • Business Development</p>
 
     <div class="contact">
-  <span>206-866-8698</span>
-  <span class="dot"></span>
-  <span>Seattle, WA</span>
-  <span class="dot"></span>
-  <span><a href="mailto:Samtc99@me.com">Samtc99@me.com</a></span>
-</div>
+      <span>206-866-8698</span>
+      <span class="dot"></span>
+      <span>Seattle, WA</span>
+      <span class="dot"></span>
+      <span><a href="mailto:Samtc99@me.com">Samtc99@me.com</a></span>
+    </div>
   </header>
 
   <main class="wrap">
@@ -302,8 +296,8 @@ h1::after{
         </div>
 
         <p class="desc">
-          Worked as an HR Associate on a small operations team at WongDoody, a global marketing agency headquartered in Seattle. 
-          Supported onboarding, employee records, benefits, payroll, L&D, technical support, and recruiting in partnership with the Talent Acquisition team.
+          Worked as an HR Associate on a small operations team at WongDoody, a global marketing agency headquartered in Seattle.
+          Supported onboarding, employee records, benefits, payroll, L&amp;D, technical support, and recruiting in partnership with the Talent Acquisition team.
         </p>
 
         <ul>
@@ -326,7 +320,7 @@ h1::after{
         </div>
 
         <p class="desc">
-          Served on Slalom’s Global PeopleOne team as a primary contact for employee lifecycle support. Assisted in evolving internal processes 
+          Served on Slalom’s Global PeopleOne team as a primary contact for employee lifecycle support. Assisted in evolving internal processes
           and scaling support systems to meet business growth.
         </p>
 
@@ -387,43 +381,43 @@ h1::after{
       </div>
     </section>
 
-   <section id="education">
-  <h2>Education</h2>
+    <section id="education">
+      <h2>Education</h2>
 
-  <div class="role" data-role>
-    <div class="role-top">
-      <div>
-        <div class="company">Seattle Pacific University</div>
-        <div class="title">Bachelor of History &amp; Education</div>
+      <div class="role" data-role>
+        <div class="role-top">
+          <div>
+            <div class="company">Seattle Pacific University</div>
+            <div class="title">Bachelor of History &amp; Education</div>
+          </div>
+          <div class="dates">2018</div>
+        </div>
       </div>
-      <div class="dates">2018</div>
-    </div>
-  </div>
 
-  <div class="role" data-role>
-    <div class="role-top">
-      <div>
-        <div class="company">University of Southern New Hampshire</div>
-        <div class="title">Bachelor of History &amp; Education</div>
+      <div class="role" data-role>
+        <div class="role-top">
+          <div>
+            <div class="company">University of Southern New Hampshire</div>
+            <div class="title">Bachelor of History &amp; Education</div>
+          </div>
+          <div class="dates">In Progress</div>
+        </div>
       </div>
-      <div class="dates">In Progress</div>
-    </div>
-  </div>
-</section>
+    </section>
 
-<section id="skills" class="skills" data-role>
-  <h2>Skills</h2>
+    <section id="skills" class="skills" data-role>
+      <h2>Skills</h2>
 
-  <p>
-    Strong ability to build rapport, manage multiple priorities, and communicate effectively across teams.
-    Passionate about people development, education, and creating positive employee experiences.
-  </p>
+      <p>
+        Strong ability to build rapport, manage multiple priorities, and communicate effectively across teams.
+        Passionate about people development, education, and creating positive employee experiences.
+      </p>
 
-  <p>
-    Experienced across Workday, Paylocity, FreshService, Greenhouse, ServiceNow, Microsoft Office, Adobe tools,
-    and Apple productivity software. Comfortable across both MacOS and Windows environments.
-  </p>
-</section>
+      <p>
+        Experienced across Workday, Paylocity, FreshService, Greenhouse, ServiceNow, Microsoft Office, Adobe tools,
+        and Apple productivity software. Comfortable across both MacOS and Windows environments.
+      </p>
+    </section>
   </main>
 
   <footer class="wrap">
@@ -431,44 +425,50 @@ h1::after{
   </footer>
 
   <script>
-  // Footer year
-  document.getElementById('year').textContent = new Date().getFullYear();
+    // Footer year
+    document.getElementById('year').textContent = new Date().getFullYear();
 
-  // Highlight the role whose center is closest to the viewport center
-  const roles = Array.from(document.querySelectorAll('[data-role]'));
+    // Active highlight (supports bottom-of-page behavior)
+    const items = Array.from(document.querySelectorAll('[data-role]'));
 
-  const io = new IntersectionObserver((entries) => {
-    // Find roles that are currently in the "view band"
-    const visible = roles.filter(el => {
-      const r = el.getBoundingClientRect();
-      // considered visible if any part of it is on screen
-      return r.bottom > 0 && r.top < window.innerHeight;
-    });
-
-    if (!visible.length) return;
-
-    const viewportCenter = window.innerHeight / 2;
-    let best = null;
-    let bestDist = Infinity;
-
-    for (const el of visible) {
-      const r = el.getBoundingClientRect();
-      const elCenter = r.top + r.height / 2;
-      const dist = Math.abs(elCenter - viewportCenter);
-      if (dist < bestDist) {
-        bestDist = dist;
-        best = el;
-      }
+    function setActive(el){
+      items.forEach(x => x.classList.toggle('is-active', x === el));
     }
 
-    roles.forEach(r => r.classList.toggle('is-active', r === best));
-  }, {
-    // middle band: only really triggers when something is near center
-    rootMargin: "-35% 0px -35% 0px",
-    threshold: [0, 0.25, 0.5, 0.75, 1]
-  });
+    function updateActive(){
+      if (!items.length) return;
 
-  roles.forEach(r => io.observe(r));
-</script>
+      const scrollBottom = window.scrollY + window.innerHeight;
+      const pageBottom = document.documentElement.scrollHeight;
+
+      // Near bottom: force the last item active (so Skills can activate)
+      if (pageBottom - scrollBottom < 140) {
+        setActive(items[items.length - 1]);
+        return;
+      }
+
+      // Otherwise: pick the item closest to the viewport center
+      const viewportCenter = window.innerHeight / 2;
+      let best = null;
+      let bestDist = Infinity;
+
+      for (const el of items) {
+        const r = el.getBoundingClientRect();
+        if (r.bottom <= 0 || r.top >= window.innerHeight) continue; // skip offscreen
+        const elCenter = r.top + r.height / 2;
+        const dist = Math.abs(elCenter - viewportCenter);
+        if (dist < bestDist) {
+          bestDist = dist;
+          best = el;
+        }
+      }
+
+      if (best) setActive(best);
+    }
+
+    window.addEventListener('scroll', updateActive, { passive: true });
+    window.addEventListener('resize', updateActive);
+    updateActive();
+  </script>
 </body>
 </html>
