@@ -458,10 +458,11 @@ section.is-active h2{
       const scrollBottom = window.scrollY + window.innerHeight;
       const pageBottom = document.documentElement.scrollHeight;
 
-      // Near bottom: force the last item active (so Skills can activate)
-      if (pageBottom - scrollBottom < 140) {
-        setActive(items[items.length - 1]);
-        return;
+   // Near bottom: brighten Education + Skills together
+if (pageBottom - scrollBottom < 140) {
+  const lastThree = items.slice(-3);
+  items.forEach(x => x.classList.toggle('is-active', lastThree.includes(x)));
+  return;
       }
 
       // Otherwise: pick the item closest to the viewport center
