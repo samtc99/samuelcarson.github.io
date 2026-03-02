@@ -129,12 +129,21 @@
     padding: 60px 0 30px;
     text-align: center;
     }
-    h1{
-      margin: 2px 0 8px;
-      font-size: clamp(46px, 8.5vw, 86px);
-      line-height: 1.0;
-      letter-spacing: -1.6px;
-      font-weight: 800;
+  h1{
+  margin: 2px 0 6px;
+  font-size: clamp(54px, 9vw, 96px);
+  line-height: 1;
+  letter-spacing: -1.8px;
+  font-weight: 800;
+}
+h1::after{
+  content:"";
+  display:block;
+  width:64px;
+  height:3px;
+  background: var(--accent);
+  margin: 18px auto 0;
+  border-radius: 3px;
     }
     .headline{
       margin: 0 0 16px;
