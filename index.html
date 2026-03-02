@@ -130,26 +130,32 @@
     text-align: center;
     }
   h1{
-  margin: 2px 0 6px;
+  margin: 0 auto 8px;
   font-size: clamp(54px, 9vw, 96px);
   line-height: 1;
   letter-spacing: -1.8px;
   font-weight: 800;
+  text-align:center;
+  width:100%;
+  display:block;
+  position:relative;
 }
+/* centered green accent line */
 h1::after{
   content:"";
   display:block;
-  width:64px;
+  width:72px;
   height:3px;
   background: var(--accent);
-  margin: 18px auto 0;
-  border-radius: 3px;
+  margin:18px auto 18px auto;
+  border-radius:3px;
     }
     .headline{
-      margin: 0 0 16px;
-      color: var(--muted);
-      font-size: clamp(16px, 2.2vw, 20px);
-      max-width: 70ch;
+  margin: 0 auto 18px;
+  color: var(--muted);
+  font-size: clamp(16px, 2.2vw, 20px);
+  text-align:center;
+  max-width: 700px;
     }
 
     .contact{
