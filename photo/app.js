@@ -1,8 +1,11 @@
 const PHOTOS = [
   // Put images in /photo/images/ and keep these paths relative
-  { src: "./images/01.jpg", title: "Desert Light", meta: "Utah · 2024", tag: "travel", alt: "Desert landscape at golden hour" },
-  { src: "./images/02.jpg", title: "Window Portrait", meta: "Seattle · 2025", tag: "portraits", alt: "Portrait by window light" },
-  { src: "./images/03.jpg", title: "Rain Study", meta: "Tokyo · 2023", tag: "bw", alt: "Street scene in rain, black and white" },
+  { src: "./images/EsolB&W-1.jpg", title: "Desert Light", meta: "Utah · 2024", tag: "travel", alt: "Desert landscape at golden hour" },
+  { src: "./images/EsolB&W-2.jpg", title: "Window Portrait", meta: "Seattle · 2025", tag: "portraits", alt: "Portrait by window light" },
+  { src: "./images/EsolB&W-3.jpg", title: "Rain Study", meta: "Tokyo · 2023", tag: "bw", alt: "Street scene in rain, black and white" },
+   { src: "./images/EsolB&W-4.jpg", title: "Desert Light", meta: "Utah · 2024", tag: "travel", alt: "Desert landscape at golden hour" },
+  { src: "./images/EsolB&W-5.2.jpg", title: "Window Portrait", meta: "Seattle · 2025", tag: "portraits", alt: "Portrait by window light" },
+  { src: "./images/EsolB&W-5.jpg", title: "Rain Study", meta: "Tokyo · 2023", tag: "bw", alt: "Street scene in rain, black and white" },
 ];
 
 const grid = document.getElementById("grid");
