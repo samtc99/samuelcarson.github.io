@@ -59,7 +59,7 @@ const PHOTOS = [
   { src: "/photo/images/Esol-57.jpg", title: "Desert Light", meta: "Utah · 2024", tag: "travel", alt: "Desert landscape at golden hour" },
   { src: "/photo/images/Esol-58.jpg", title: "Desert Light", meta: "Utah · 2024", tag: "travel", alt: "Desert landscape at golden hour" },
   { src: "/photo/images/Esol-59.jpg", title: "Desert Light", meta: "Utah · 2024", tag: "travel", alt: "Desert landscape at golden hour" },
-  { src: /photo/images/"Esol-60.jpg", title: "Desert Light", meta: "Utah · 2024", tag: "travel", alt: "Desert landscape at golden hour" },
+  { src: "/photo/images/Esol-60.jpg", title: "Desert Light", meta: "Utah · 2024", tag: "travel", alt: "Desert landscape at golden hour" },
   { src: "/photo/images/Esol-61.jpg", title: "Desert Light", meta: "Utah · 2024", tag: "travel", alt: "Desert landscape at golden hour" },
   { src: "/photo/images/Esol-62.jpg", title: "Desert Light", meta: "Utah · 2024", tag: "travel", alt: "Desert landscape at golden hour" },
   { src: "/photo/images/Esol-63.jpg", title: "Desert Light", meta: "Utah · 2024", tag: "travel", alt: "Desert landscape at golden hour" },
