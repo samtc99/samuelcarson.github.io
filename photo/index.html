@@ -1,14 +1,60 @@
-<!DOCTYPE html>
-<html>
+<!doctype html>
+<html lang="en">
 <head>
-<title>Photography</title>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Photography — Sam Carson</title>
+  <meta name="description" content="Photography portfolio" />
+  <link rel="stylesheet" href="./styles.css" />
 </head>
-
 <body>
-<h1>Photography</h1>
-<p>This page means the photo folder works.</p>
 
-<a href="/">Back to Resume</a>
+  <header class="site-header">
+    <a class="brand" href="/">← Resume</a>
+    <div class="title-wrap">
+      <h1>Photography</h1>
+      <p class="subtitle">Selected work</p>
+    </div>
+    <nav class="nav">
+      <a href="#work">Work</a>
+      <a href="#about">About</a>
+      <a href="mailto:you@example.com">Contact</a>
+    </nav>
+  </header>
 
+  <main>
+    <section id="work" class="gallery-section">
+      <div class="controls">
+        <button class="chip is-active" data-filter="all">All</button>
+        <button class="chip" data-filter="travel">Travel</button>
+        <button class="chip" data-filter="portraits">Portraits</button>
+        <button class="chip" data-filter="bw">B&W</button>
+      </div>
+
+      <!-- The grid gets filled by app.js -->
+      <div id="grid" class="masonry" aria-label="Photo gallery"></div>
+    </section>
+
+    <section id="about" class="about">
+      <h2>About</h2>
+      <p>
+        Short line about what you shoot + where you’re based. Keep it simple.
+      </p>
+    </section>
+  </main>
+
+  <!-- Lightbox -->
+  <div id="lightbox" class="lightbox" aria-hidden="true">
+    <button class="lb-btn lb-close" aria-label="Close (Esc)">✕</button>
+    <button class="lb-btn lb-prev" aria-label="Previous (←)">‹</button>
+    <button class="lb-btn lb-next" aria-label="Next (→)">›</button>
+
+    <figure class="lb-figure">
+      <img id="lb-img" alt="" />
+      <figcaption id="lb-cap"></figcaption>
+    </figure>
+  </div>
+
+  <script src="./app.js"></script>
 </body>
 </html>
