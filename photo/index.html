@@ -1,47 +1,77 @@
 <!doctype html>
 <html lang="en">
 <head>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&family=Playfair+Display:wght@500;600&display=swap" rel="stylesheet">
+
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Photography — Sam Carson</title>
-  <meta name="description" content="Photography portfolio" />
+  <title>Photography — Samuel Carson</title>
+  <meta name="description" content="Photography portfolio — Samuel Carson" />
+
   <link rel="stylesheet" href="./styles.css" />
 </head>
+
 <body>
-
-  <header class="site-header">
-    <a class="brand" href="/">← Resume</a>
-    <div class="title-wrap">
-      <h1>Photography</h1>
-      <p class="subtitle">Selected work</p>
-    </div>
-    <nav class="nav">
-      <a href="#work">Work</a>
-      <a href="#about">About</a>
-      <a href="mailto:you@example.com">Contact</a>
-    </nav>
-  </header>
-
-  <main>
-    <section id="work" class="gallery-section">
-      <div class="controls">
-        <button class="chip is-active" data-filter="all">All</button>
-        <button class="chip" data-filter="travel">Travel</button>
-        <button class="chip" data-filter="portraits">Portraits</button>
-        <button class="chip" data-filter="bw">B&W</button>
+  <div class="nav">
+    <div class="wrap">
+      <div class="left">
+        <a href="/" class="nav-resume">← Resume</a>
       </div>
 
-      <!-- The grid gets filled by app.js -->
-      <div id="grid" class="masonry" aria-label="Photo gallery"></div>
+      <div class="links">
+        <a href="#work">Work</a>
+        <a href="#about">About</a>
+        <a href="mailto:Samtc99@me.com">Contact</a>
+      </div>
+    </div>
+  </div>
+
+  <header class="wrap">
+    <h1 class="site-name">Photography</h1>
+    <p class="headline">Selected work by Samuel Carson</p>
+
+    <div class="contact">
+      <span>Seattle, WA</span>
+      <span class="dot"></span>
+      <span><a href="mailto:Samtc99@me.com">Samtc99@me.com</a></span>
+      <span class="dot"></span>
+      <span><a href="https://instagram.com/" target="_blank" rel="noreferrer">Instagram</a></span>
+    </div>
+  </header>
+
+  <main class="wrap">
+    <section id="work" class="gallery">
+      <h2>Work</h2>
+
+      <div class="controls" role="tablist" aria-label="Gallery filters">
+        <button class="chip is-active" data-filter="all" role="tab" aria-selected="true">All</button>
+        <button class="chip" data-filter="travel" role="tab" aria-selected="false">Travel</button>
+        <button class="chip" data-filter="portraits" role="tab" aria-selected="false">Portraits</button>
+        <button class="chip" data-filter="bw" role="tab" aria-selected="false">B&amp;W</button>
+      </div>
+
+      <div id="grid" class="grid" aria-label="Photo gallery"></div>
     </section>
 
-    <section id="about" class="about">
+    <section id="about" class="about" data-role>
       <h2>About</h2>
-      <p>
-        Short line about what you shoot + where you’re based. Keep it simple.
+      <p class="desc">
+        Write 2–3 sentences about what you shoot and what you’re drawn to. Keep it simple,
+        same voice as your resume.
       </p>
+
+      <div class="about-links">
+        <a class="nav-resume" href="mailto:Samtc99@me.com">Email</a>
+        <a class="nav-resume" href="https://instagram.com/" target="_blank" rel="noreferrer">Instagram</a>
+      </div>
     </section>
   </main>
+
+  <footer class="wrap">
+    © <span id="year"></span> Samuel Carson
+  </footer>
 
   <!-- Lightbox -->
   <div id="lightbox" class="lightbox" aria-hidden="true">
@@ -55,6 +85,10 @@
     </figure>
   </div>
 
+  <script>
+    // Footer year (mirrors your resume page)
+    document.getElementById('year').textContent = new Date().getFullYear();
+  </script>
   <script src="./app.js"></script>
 </body>
 </html>
