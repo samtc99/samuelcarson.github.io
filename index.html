@@ -33,11 +33,13 @@
       color: var(--text);
       line-height: 1.65;
     }
-.site-name{
-  font-family: "Playfair Display", serif;
-  font-weight: 600;
-  letter-spacing: 0.03em;
-}
+
+    .site-name{
+      font-family: "Playfair Display", serif;
+      font-weight: 600;
+      letter-spacing: 0.03em;
+    }
+
     a{
       color: var(--accent);
       text-decoration: none;
@@ -83,23 +85,25 @@
       padding: 16px 0;
       border-bottom: 1px solid var(--line);
     }
+
     /* When a section (like Skills) becomes active — fully brighten text */
-section.is-active{
-  opacity: 1;
-}
+    section.is-active{
+      opacity: 1;
+    }
 
-/* brighten text inside active Skills/Education section */
-section.is-active p,
-section.is-active li,
-section.is-active .title{
-  color: var(--text);
-}
+    /* brighten text inside active Skills/Education section */
+    section.is-active p,
+    section.is-active li,
+    section.is-active .title{
+      color: var(--text);
+    }
 
-/* keep secondary tone slightly muted but readable */
-section.is-active h2{
-  color: var(--text);
-  border-bottom-color: rgba(255,255,255,.15);
-}
+    /* keep secondary tone slightly muted but readable */
+    section.is-active h2{
+      color: var(--text);
+      border-bottom-color: rgba(255,255,255,.15);
+    }
+
     .role:last-child{ border-bottom: none; }
     .role.is-active{ opacity: 1; }
 
@@ -276,6 +280,70 @@ section.is-active h2{
       border-top: 1px solid var(--line);
       margin-top: 10px;
     }
+
+    /* ---------------------------
+       Bracket connector for grouped roles
+       (WongDoody + Apple)
+    ---------------------------- */
+    .role-group{
+      position: relative;
+      padding-left: 26px;     /* space for bracket */
+      margin: 6px 0;          /* keep group tight */
+    }
+
+    /* vertical stroke */
+    .role-group::before{
+      content:"";
+      position:absolute;
+      left: 8px;
+      top: 18px;
+      bottom: 18px;
+      width: 3px;
+      background: rgba(16,185,129,.85);
+      border-radius: 999px;
+      pointer-events: none;
+    }
+
+    /* top hook */
+    .role-group::after{
+      content:"";
+      position:absolute;
+      left: 8px;
+      top: 18px;
+      width: 18px;
+      height: 3px;
+      background: rgba(16,185,129,.85);
+      border-radius: 999px;
+      pointer-events: none;
+    }
+
+    /* bottom hook */
+    .role-group .group-cap{
+      position:absolute;
+      left: 8px;
+      bottom: 18px;
+      width: 18px;
+      height: 3px;
+      background: rgba(16,185,129,.85);
+      border-radius: 999px;
+      pointer-events: none;
+    }
+
+    /* remove horizontal divider between roles inside a group */
+    .role-group .role{
+      border-bottom: none;
+      padding-bottom: 18px;
+    }
+    .role-group .role:last-child{
+      padding-bottom: 16px;
+    }
+
+    /* keep a single divider AFTER the group */
+    .role-group{
+      padding-bottom: 8px;
+      border-bottom: 1px solid var(--line);
+      margin-bottom: 0;
+    }
   </style>
 </head>
 
@@ -310,49 +378,54 @@ section.is-active h2{
     <section id="experience">
       <h2>Experience</h2>
 
-<div class="role" data-role>
-  <div class="role-top">
-    <div>
-      <div class="company">WongDoody</div>
-      <div class="title">Business Development Coordinator</div>
-    </div>
-    <div class="dates">June 2025 – Present</div>
-  </div>
+      <!-- WongDoody group -->
+      <div class="role-group">
+        <div class="group-cap" aria-hidden="true"></div>
 
-  <p class="desc">
-    Support business development operations by managing the lifecycle of a large subcontractor workforce supporting enterprise clients. Coordinate contractor onboarding, vendor relationships, and intercompany documentation while maintaining oversight of timesheets, contracts, and engagement logistics. Contribute to the operational infrastructure supporting multi-million-dollar client programs.
-  </p>
-
-  <ul>
-    <li>Manage administrative oversight of 300+ subcontractors supporting major client engagements, including Google, Truist Bank, United Airlines, and T-Mobile.</li>
-    <li>Review, approve, and track subcontractor timesheets and hours to ensure accurate billing and compliance across projects generating tens of millions in annual revenue.</li>
-    <li>Coordinate onboarding for new subcontractors and collaborate with staffing vendors to source talent aligned with evolving client needs.</li>
-    <li>Oversee intercompany documentation between clients, WongDoody, and staffing vendors, including drafting and renewing ~50 subcontractor agreements each month as contracts reach expiration.</li>
-  </ul>
-</div>
-      
-      <div class="role" data-role>
-        <div class="role-top">
-          <div>
-            <div class="company">WongDoody</div>
-            <div class="title">HR Associate</div>
+        <div class="role" data-role>
+          <div class="role-top">
+            <div>
+              <div class="company">WongDoody</div>
+              <div class="title">Business Development Coordinator</div>
+            </div>
+            <div class="dates">June 2025 – Present</div>
           </div>
-          <div class="dates">September 2022 – January 2025</div>
+
+          <p class="desc">
+            Support business development operations by managing the lifecycle of a large subcontractor workforce supporting enterprise clients. Coordinate contractor onboarding, vendor relationships, and intercompany documentation while maintaining oversight of timesheets, contracts, and engagement logistics. Contribute to the operational infrastructure supporting multi-million-dollar client programs.
+          </p>
+
+          <ul>
+            <li>Manage administrative oversight of 300+ subcontractors supporting major client engagements, including Google, Truist Bank, United Airlines, and T-Mobile.</li>
+            <li>Review, approve, and track subcontractor timesheets and hours to ensure accurate billing and compliance across projects generating tens of millions in annual revenue.</li>
+            <li>Coordinate onboarding for new subcontractors and collaborate with staffing vendors to source talent aligned with evolving client needs.</li>
+            <li>Oversee intercompany documentation between clients, WongDoody, and staffing vendors, including drafting and renewing ~50 subcontractor agreements each month as contracts reach expiration.</li>
+          </ul>
         </div>
 
-        <p class="desc">
-          Worked as an HR Associate on a small operations team at WongDoody, a global marketing agency headquartered in Seattle.
-          Supported onboarding, employee records, benefits, payroll, L&amp;D, technical support, and recruiting in partnership with the Talent Acquisition team.
-        </p>
+        <div class="role" data-role>
+          <div class="role-top">
+            <div>
+              <div class="company">WongDoody</div>
+              <div class="title">HR Associate</div>
+            </div>
+            <div class="dates">September 2022 – January 2025</div>
+          </div>
 
-        <ul>
-          <li>Oversaw all inter-agency communications from the People Team; designed and implemented new templates during the 2023 branding refresh.</li>
-          <li>Built annual review infrastructure including 8 department-specific review decks and managed the full review process to ensure a seamless employee experience.</li>
-          <li>Conducted company-wide surveys and delivered insights to executive leadership including the CEO and Head of People.</li>
-          <li>Led both in-person and virtual onboarding; partnered with hiring managers to build structured two-week onboarding schedules for all new hires.</li>
-          <li>Maintained organization of all employee files and records across systems.</li>
-          <li>Facilitated exit interviews and managed all offboarding documentation and processes.</li>
-        </ul>
+          <p class="desc">
+            Worked as an HR Associate on a small operations team at WongDoody, a global marketing agency headquartered in Seattle.
+            Supported onboarding, employee records, benefits, payroll, L&amp;D, technical support, and recruiting in partnership with the Talent Acquisition team.
+          </p>
+
+          <ul>
+            <li>Oversaw all inter-agency communications from the People Team; designed and implemented new templates during the 2023 branding refresh.</li>
+            <li>Built annual review infrastructure including 8 department-specific review decks and managed the full review process to ensure a seamless employee experience.</li>
+            <li>Conducted company-wide surveys and delivered insights to executive leadership including the CEO and Head of People.</li>
+            <li>Led both in-person and virtual onboarding; partnered with hiring managers to build structured two-week onboarding schedules for all new hires.</li>
+            <li>Maintained organization of all employee files and records across systems.</li>
+            <li>Facilitated exit interviews and managed all offboarding documentation and processes.</li>
+          </ul>
+        </div>
       </div>
 
       <div class="role" data-role>
@@ -376,38 +449,43 @@ section.is-active h2{
         </ul>
       </div>
 
-      <div class="role" data-role>
-        <div class="role-top">
-          <div>
-            <div class="company">Apple Inc</div>
-            <div class="title">Training Lead</div>
+      <!-- Apple group -->
+      <div class="role-group">
+        <div class="group-cap" aria-hidden="true"></div>
+
+        <div class="role" data-role>
+          <div class="role-top">
+            <div>
+              <div class="company">Apple Inc</div>
+              <div class="title">Training Lead</div>
+            </div>
+            <div class="dates">December 2020 – November 2021</div>
           </div>
-          <div class="dates">December 2020 – November 2021</div>
+
+          <ul>
+            <li>Led training and development for 170 employees at Apple’s University Village flagship location.</li>
+            <li>Spearheaded onboarding for 60 new hires within a two-month period supporting major product launches.</li>
+            <li>Implemented and facilitated hiring and training events across multiple Apple store locations.</li>
+            <li>Redesigned training methods, increasing storewide completion rates to over 90%.</li>
+          </ul>
         </div>
 
-        <ul>
-          <li>Led training and development for 170 employees at Apple’s University Village flagship location.</li>
-          <li>Spearheaded onboarding for 60 new hires within a two-month period supporting major product launches.</li>
-          <li>Implemented and facilitated hiring and training events across multiple Apple store locations.</li>
-          <li>Redesigned training methods, increasing storewide completion rates to over 90%.</li>
-        </ul>
-      </div>
-
-      <div class="role" data-role>
-        <div class="role-top">
-          <div>
-            <div class="company">Apple Inc</div>
-            <div class="title">Specialist</div>
+        <div class="role" data-role>
+          <div class="role-top">
+            <div>
+              <div class="company">Apple Inc</div>
+              <div class="title">Specialist</div>
+            </div>
+            <div class="dates">February 2019 – December 2020</div>
           </div>
-          <div class="dates">February 2019 – December 2020</div>
-        </div>
 
-        <ul>
-          <li>Delivered high-level customer experiences while supporting sales performance and engagement metrics.</li>
-          <li>Selected for the store’s visual team and entrusted with key merchandising responsibilities.</li>
-          <li>Led overnight product launches and partnered with global visual teams to implement storewide updates.</li>
-          <li>Maintained a 90 overall team member performance score throughout tenure.</li>
-        </ul>
+          <ul>
+            <li>Delivered high-level customer experiences while supporting sales performance and engagement metrics.</li>
+            <li>Selected for the store’s visual team and entrusted with key merchandising responsibilities.</li>
+            <li>Led overnight product launches and partnered with global visual teams to implement storewide updates.</li>
+            <li>Maintained a 90 overall team member performance score throughout tenure.</li>
+          </ul>
+        </div>
       </div>
 
       <div class="role" data-role>
@@ -486,11 +564,11 @@ section.is-active h2{
       const scrollBottom = window.scrollY + window.innerHeight;
       const pageBottom = document.documentElement.scrollHeight;
 
-   // Near bottom: brighten Education + Skills together
-if (pageBottom - scrollBottom < 140) {
-  const lastThree = items.slice(-3);
-  items.forEach(x => x.classList.toggle('is-active', lastThree.includes(x)));
-  return;
+      // Near bottom: brighten Education + Skills together
+      if (pageBottom - scrollBottom < 140) {
+        const lastThree = items.slice(-3);
+        items.forEach(x => x.classList.toggle('is-active', lastThree.includes(x)));
+        return;
       }
 
       // Otherwise: pick the item closest to the viewport center
