@@ -208,17 +208,48 @@ h2{
   background: rgba(16,185,129,.10);
 }
 
-/* Grid (clean, resume-like: subtle borders, no loud gradients) */
+/* =========================
+   BALANCED MASONRY GALLERY
+   =========================
+
+   - Uses true CSS Grid masonry where supported
+   - Falls back to multi-column masonry everywhere else
+   - Keeps images uncropped (height: auto)
+*/
+
+/* Fallback (works everywhere): multi-column masonry */
 .grid{
-  display:grid;
-  grid-template-columns: repeat(12, 1fr);
-  gap: 14px;
+  column-count: 3;
+  column-gap: 14px;
 }
 
-/* 3 columns desktop, 2 columns tablet, 1 column mobile */
-.card{ grid-column: span 4; }
-@media (max-width: 980px){ .card{ grid-column: span 6; } }
-@media (max-width: 620px){ .card{ grid-column: span 12; } }
+/* responsive columns */
+@media (max-width: 980px){
+  .grid{ column-count: 2; }
+}
+@media (max-width: 620px){
+  .grid{ column-count: 1; }
+}
+
+/* Progressive enhancement: true masonry grid where supported (balanced columns) */
+@supports (grid-template-rows: masonry){
+  .grid{
+    column-count: initial;
+    column-gap: initial;
+
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    grid-template-rows: masonry;
+    gap: 14px;
+  }
+
+  @media (max-width: 980px){
+    .grid{ grid-template-columns: repeat(2, 1fr); }
+  }
+  @media (max-width: 620px){
+    .grid{ grid-template-columns: 1fr; }
+  }
+}
 
 /* Card */
 .card{
@@ -230,6 +261,15 @@ h2{
   position: relative;
   box-shadow: 0 0 0 rgba(0,0,0,0);
   transition: transform .18s ease, box-shadow .18s ease, border-color .18s ease;
+
+  /* masonry fallback rules */
+  break-inside: avoid;
+  margin: 0 0 14px;
+}
+
+/* If we’re in true grid masonry mode, we don’t want bottom margins */
+@supports (grid-template-rows: masonry){
+  .card{ margin: 0; }
 }
 
 .card:hover{
@@ -240,7 +280,7 @@ h2{
 
 .card img{
   width: 100%;
-  height: auto;
+  height: auto;          /* key: tile matches photo */
   display:block;
   transition: transform .35s ease;
   transform: scale(1.01);
