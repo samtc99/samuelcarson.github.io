@@ -1,5 +1,4 @@
-const PHOTOS = [
-  const PHOTOS = Array.from({ length: 71 }, (_, i) => {
+const PHOTOS = Array.from({ length: 71 }, (_, i) => {
   const n = String(i + 1).padStart(2, "0"); // "01".."71"
   return {
     src: `/photo/images/Esol-${n}.jpg`,
@@ -9,7 +8,6 @@ const PHOTOS = [
     alt: `Esol portrait ${n}`
   };
 });
-];
 
 const grid = document.getElementById("grid");
 const chips = Array.from(document.querySelectorAll(".chip"));
