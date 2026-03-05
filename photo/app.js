@@ -27,17 +27,10 @@ function render() {
   visible = PHOTOS.filter(p => active === "all" || p.tag === active);
 
   grid.innerHTML = visible.map((p, i) => `
-    <article class="card" role="button" tabindex="0" data-index="${i}">
-      <img src="${p.src}" alt="${p.alt || p.title}" loading="lazy" />
-      <div class="overlay">
-        <div class="caption">
-          <div class="name">${p.title}</div>
-          <div class="meta">${p.meta || ""}</div>
-        </div>
-        <div class="pill">${active === "all" ? p.tag : "view"}</div>
-      </div>
-    </article>
-  `).join("");
+  <article class="card" role="button" tabindex="0" data-index="${i}">
+    <img src="${p.src}" alt="${p.alt || p.title}" loading="lazy" />
+  </article>
+`).join("");
 }
 
 function setChipActive(chip){
