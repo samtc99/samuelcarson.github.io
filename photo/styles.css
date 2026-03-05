@@ -3,6 +3,7 @@
   --fg:#f5f5f5;
   --muted:rgba(245,245,245,.62);
   --accent:#10b981;
+  --gutter: 16px;
   --gap: 10px;
   --radius: 16px;
 }
@@ -51,13 +52,14 @@ body{
 
 /* Full-bleed gallery frame */
 .frame{
-  padding: 0 18px 18px;
+  width:100%;
+  padding: 0 var(--gutter) var(--gutter);
 }
-
 /* Masonry that “fills” with low negative space */
 .masonry{
-  column-count: 3;
-  column-gap: var(--gap);
+  column-count:3;
+  column-gap:var(--gap);
+  width:100%;
 }
 
 /* Responsive columns */
