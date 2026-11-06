@@ -2,38 +2,50 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="theme-color" content="#0b0b0c" />
   <title>Samuel Carson — Photography</title>
-
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600&family=Playfair+Display:wght@500;600&display=swap" rel="stylesheet">
-
-  <link rel="stylesheet" href="./styles.css?v=gallery-3" />
+  <link rel="stylesheet" href="./styles.css?v=mobile-deck-1" />
 </head>
 <body>
-
+  <svg class="icon-defs" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+    <symbol id="icon-grid" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></symbol>
+    <symbol id="icon-shuffle" viewBox="0 0 24 24"><path d="M3 6h3c5 0 7 12 12 12h3M17 14l4 4-4 4M3 18h3c2 0 4-3 5-6M13 8c2-2 3-2 5-2h3M17 2l4 4-4 4"/></symbol>
+    <symbol id="icon-close" viewBox="0 0 24 24"><path d="m6 6 12 12M6 18 18 6"/></symbol>
+    <symbol id="icon-left" viewBox="0 0 24 24"><path d="m15 5-7 7 7 7"/></symbol>
+    <symbol id="icon-right" viewBox="0 0 24 24"><path d="m9 5 7 7-7 7"/></symbol>
+  </svg>
   <header class="top">
     <a class="name" href="/">Samuel Carson</a>
+    <button class="icon-button browse-trigger" type="button" aria-label="Browse all photographs" aria-haspopup="dialog" aria-controls="browse"><svg class="icon" aria-hidden="true"><use href="#icon-grid"/></svg></button>
   </header>
-
   <main class="frame">
-    <div id="grid" class="masonry" aria-label="Photo gallery"></div>
+    <div id="grid" class="masonry" role="region" aria-label="Photographs — scroll to explore"></div>
+    <noscript><p class="empty-message">Please enable JavaScript to explore the photography gallery.</p></noscript>
   </main>
-
-  <!-- Lightbox (optional, keep if you want click-to-view) -->
-  <div id="lightbox" class="lightbox" aria-hidden="true">
-    <button class="lb-btn lb-close" aria-label="Close (Esc)">✕</button>
-    <button class="lb-btn lb-prev" aria-label="Previous (←)">‹</button>
-    <button class="lb-btn lb-next" aria-label="Next (→)">›</button>
-
-    <figure class="lb-figure">
-      <img id="lb-img" alt="" />
-      <figcaption id="lb-cap"></figcaption>
-    </figure>
-  </div>
-
-  <script src="./photos.js?v=gallery-3"></script>
-  <script src="./app.js?v=gallery-3"></script>
+  <nav class="deck-controls" aria-label="Gallery controls">
+    <output id="photo-count" class="photo-count" aria-label="Photo 1" aria-live="off"></output>
+    <button id="shuffle" class="text-button" type="button" aria-label="Shuffle photographs"><svg class="icon accent" aria-hidden="true"><use href="#icon-shuffle"/></svg><span>Shuffle</span></button>
+    <button class="text-button browse-trigger" type="button" aria-haspopup="dialog" aria-controls="browse"><svg class="icon" aria-hidden="true"><use href="#icon-grid"/></svg><span>Browse</span></button>
+  </nav>
+  <p id="gallery-status" class="sr-only" role="status" aria-live="polite"></p>
+  <dialog id="browse" class="browse-dialog" aria-labelledby="browse-title">
+    <header class="browse-header">
+      <div><p class="eyebrow">Samuel Carson</p><h1 id="browse-title">All photographs</h1><p id="browse-count" class="browse-count"></p></div>
+      <button id="browse-close" class="icon-button" type="button" aria-label="Close photo browser"><svg class="icon" aria-hidden="true"><use href="#icon-close"/></svg></button>
+    </header>
+    <div id="contact-sheet" class="contact-sheet"></div>
+  </dialog>
+  <dialog id="lightbox" class="lightbox" aria-label="Full-screen photograph">
+    <button class="icon-button lb-close" type="button" aria-label="Close full-screen photograph"><svg class="icon" aria-hidden="true"><use href="#icon-close"/></svg></button>
+    <button class="icon-button lb-prev" type="button" aria-label="Previous photograph"><svg class="icon" aria-hidden="true"><use href="#icon-left"/></svg></button>
+    <button class="icon-button lb-next" type="button" aria-label="Next photograph"><svg class="icon" aria-hidden="true"><use href="#icon-right"/></svg></button>
+    <figure class="lb-figure"><img id="lb-img" alt="" /><figcaption id="lb-cap"></figcaption></figure>
+  </dialog>
+  <script src="./photos.js?v=mobile-deck-1"></script>
+  <script src="./app.js?v=mobile-deck-1"></script>
 </body>
 </html>

@@ -1,0 +1,6 @@
+{
+  "name": "photography-gallery-checks",
+  "private": true,
+  "scripts": { "test": "node gallery.test.cjs" },
+  "devDependencies": { "jsdom": "26.1.0" }
+}
