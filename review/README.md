@@ -13,6 +13,11 @@ It uses the existing live photographs, mobile copies and thumbnails from
   loads cannot reopen old cards. Header controls remain accessible.
 - Mobile thumbnail taps keep their existing jump-to-deck behavior.
 
-Forty DOM/navigation checks cover these interactions and the previous mobile
-features. They do not replace visual pointer and native-browser review. This
+The pull now starts at the thumbnail's actual position and grows with a uniform
+scale and a gentle easing curve. Moving away returns it toward the source;
+reentering reverses that return smoothly. The photo stays opaque throughout,
+and loading a sharper image does not restart the movement.
+
+Forty-eight DOM/navigation/animation-state checks cover these interactions and the previous mobile
+features. They do not measure actual browser frame timing or replace visual pointer review. This
 branch has not been published to the production website.

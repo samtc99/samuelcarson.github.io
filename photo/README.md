@@ -63,6 +63,13 @@ image decode cannot reopen an old card. Very short windows omit the raised
 preview rather than covering controls. Reduced-motion settings disable the lift
 animation; the image and its solid backing stay fully opaque throughout.
 
+The raised card animates from its source thumbnail's real bounds using one
+uniform scale and translation (300ms eased pull, 180ms return). A cached thumbnail
+can start the pull before the larger image is decoded; that image swaps in
+without replaying the animation. Reentering a returning card resumes from its
+current visual position. Lifecycle changes cancel motion immediately. Browsers
+without Web Animations keep the static preview fallback.
+
 ## Review without publishing
 
 `review/mobile-deck.html` is an interactive, single-file review page using the same

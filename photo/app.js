@@ -103,19 +103,59 @@ let hoverTimer;
 let hoverCloseTimer;
 let keyboardNavigation = false;
 let hoverBlockedUntil = 0;
+let hoverOrigin = null;
+let hoverAnimation = null;
+let hoverClosing = false;
 
 function desktopPreviewEnabled() {
   return finePointer.matches && !mobileView.matches;
 }
-function hideHoverPreview() {
+function cancelHoverMotion() {
+  const animation = hoverAnimation;
+  hoverAnimation = null;
+  hoverClosing = false;
+  animation?.cancel();
+}
+function hoverBox() {
+  return { left:parseFloat(hoverPreview.style.left), top:parseFloat(hoverPreview.style.top),
+    width:parseFloat(hoverPreview.style.width), height:parseFloat(hoverPreview.style.height) };
+}
+function cardTransform(rect, box) {
+  // A single scale keeps the photograph's proportions intact throughout motion.
+  const scale = Math.max(.01, Math.min(rect.width / box.width, rect.height / box.height));
+  const x = rect.left + (rect.width - box.width * scale) / 2 - box.left;
+  const y = rect.top + (rect.height - box.height * scale) / 2 - box.top;
+  return `translate(${x}px, ${y}px) scale(${scale})`;
+}
+function hideHoverPreview({ animate = false } = {}) {
   clearTimeout(hoverTimer);
   clearTimeout(hoverCloseTimer);
   hoverRequest++;
   hoverCandidate = null;
+  if (animate && !hoverPreview.hidden && hoverOrigin?.isConnected && !reducedMotion.matches && typeof hoverPreview.animate === "function") {
+    const current = hoverPreview.getBoundingClientRect();
+    const origin = hoverOrigin.getBoundingClientRect();
+    const box = hoverBox();
+    cancelHoverMotion();
+    hoverClosing = true;
+    const animation = hoverPreview.animate([
+      { transform:cardTransform(current, box) },
+      { transform:cardTransform(origin, box) }
+    ], { duration:180, easing:"cubic-bezier(.4,0,.7,.2)", fill:"forwards" });
+    hoverAnimation = animation;
+    Promise.resolve(animation.finished).then(() => {
+      if (hoverAnimation !== animation || !hoverClosing) return;
+      hoverPreview.hidden = true;
+      hoverOrigin = null;
+      cancelHoverMotion();
+    }).catch(() => {});
+    return;
+  }
+  cancelHoverMotion();
   hoverPreview.hidden = true;
+  hoverOrigin = null;
 }
-function positionHoverPreview(origin, photo) {
-  const rect = origin.getBoundingClientRect();
+function positionHoverPreview(origin, photo, rect = origin.getBoundingClientRect()) {
   const viewportWidth = document.documentElement.clientWidth || window.innerWidth;
   const viewportHeight = window.innerHeight;
   const margin = 18;
@@ -131,7 +171,42 @@ function positionHoverPreview(origin, photo) {
   Object.assign(hoverPreview.style, { width:`${width}px`, height:`${height}px`, left:`${left}px`, top:`${top}px` });
   return true;
 }
-function scheduleHoverPreview(origin, delay = 110) {
+function presentHoverPreview(origin, photo, index, source) {
+  // A sharper image can replace its cached thumbnail without replaying the pull.
+  if (!hoverPreview.hidden && hoverOrigin === origin && !hoverClosing) {
+    hoverImg.src = source;
+    return;
+  }
+  const originRect = origin.getBoundingClientRect();
+  const start = hoverClosing && hoverOrigin === origin ? hoverPreview.getBoundingClientRect() : originRect;
+  cancelHoverMotion();
+  if (hoverPreview.parentElement !== browse) browse.append(hoverPreview);
+  if (!positionHoverPreview(origin, photo, originRect)) return;
+  hoverOrigin = origin;
+  hoverImg.src = source;
+  hoverPreview.dataset.index = String(index);
+  hoverPreview.setAttribute("aria-label", `View full photograph: ${photo.title}`);
+  hoverPreview.hidden = false;
+  if (!reducedMotion.matches && typeof hoverPreview.animate === "function") {
+    const animation = hoverPreview.animate([
+      { transform:cardTransform(start, hoverBox()) },
+      { transform:"translate(0px, 0px) scale(1)" }
+    ], { duration:300, easing:"cubic-bezier(.16,1,.3,1)", fill:"none" });
+    hoverAnimation = animation;
+    Promise.resolve(animation.finished).then(() => {
+      if (hoverAnimation === animation) hoverAnimation = null;
+    }).catch(() => {});
+  }
+}
+function loadHoverDetail(origin, photo, index, request) {
+  const image = new Image();
+  image.src = photo.preview;
+  image.decode().then(() => {
+    if (request !== hoverRequest || hoverCandidate !== origin || !desktopPreviewEnabled() || !browse.open || lightbox.open) return;
+    presentHoverPreview(origin, photo, index, photo.preview);
+  }).catch(() => { /* The cached thumbnail remains usable if its larger copy fails. */ });
+}
+function scheduleHoverPreview(origin, delay = 70) {
   if (!desktopPreviewEnabled() || !browse.open || lightbox.open || performance.now() < hoverBlockedUntil) return;
   clearTimeout(hoverTimer);
   clearTimeout(hoverCloseTimer);
@@ -142,19 +217,10 @@ function scheduleHoverPreview(origin, delay = 110) {
     const index = Number(origin.dataset.index);
     const photo = photos[index];
     if (!photo || hoverCandidate !== origin) return;
-    const image = new Image();
-    image.src = photo.preview;
-    image.decode().then(() => {
-      if (request !== hoverRequest || hoverCandidate !== origin || !desktopPreviewEnabled() || !browse.open || lightbox.open) return;
-      // A child of the native dialog escapes the sheet's scroll clipping and
-      // stays in the same top layer. The preview itself receives its clicks.
-      if (hoverPreview.parentElement !== browse) browse.append(hoverPreview);
-      if (!positionHoverPreview(origin, photo)) return;
-      hoverImg.src = photo.preview;
-      hoverPreview.dataset.index = String(index);
-      hoverPreview.setAttribute("aria-label", `View full photograph: ${photo.title}`);
-      hoverPreview.hidden = false;
-    }).catch(() => { /* A failed hover image must never block the actual photo button. */ });
+    // Start with the already-decoded thumbnail instead of waiting on the network.
+    const thumb = origin.querySelector("img");
+    if (thumb.complete && thumb.naturalWidth) presentHoverPreview(origin, photo, index, thumb.currentSrc || thumb.src);
+    loadHoverDetail(origin, photo, index, request);
   }, delay);
 }
 function deferHoverClose() {
@@ -165,7 +231,7 @@ function deferHoverClose() {
     hoverCandidate = null;
     return;
   }
-  hoverCloseTimer = setTimeout(hideHoverPreview, 140);
+  hoverCloseTimer = setTimeout(() => hideHoverPreview({ animate:true }), 90);
 }
 
 function saveState() {
@@ -514,8 +580,26 @@ sheet.addEventListener("focusin", event => {
 sheet.addEventListener("focusout", event => {
   if (!hoverPreview.contains(event.relatedTarget)) deferHoverClose();
 });
-hoverPreview.addEventListener("pointerenter", () => { clearTimeout(hoverCloseTimer); });
-hoverPreview.addEventListener("pointerleave", deferHoverClose);
+hoverPreview.addEventListener("pointerenter", () => {
+  clearTimeout(hoverCloseTimer);
+  if (hoverClosing && hoverOrigin) {
+    const origin = hoverOrigin;
+    const index = Number(hoverPreview.dataset.index);
+    hoverCandidate = origin;
+    const request = ++hoverRequest;
+    presentHoverPreview(origin, photos[index], index, hoverImg.src);
+    if (hoverImg.src !== photos[index].preview) loadHoverDetail(origin, photos[index], index, request);
+  }
+});
+hoverPreview.addEventListener("pointerleave", event => {
+  // A growing card can uncover its source near a clamped viewport edge.
+  // Treat the source and raised preview as one continuous hover area.
+  if (hoverOrigin?.contains(event.relatedTarget)) {
+    clearTimeout(hoverCloseTimer);
+    return;
+  }
+  deferHoverClose();
+});
 hoverPreview.addEventListener("click", () => {
   if (!hoverPreview.hidden) openLightbox(Number(hoverPreview.dataset.index));
 });
