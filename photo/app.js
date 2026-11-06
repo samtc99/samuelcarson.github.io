@@ -45,7 +45,7 @@ function mixPhotos(photos) {
     .sort((a, b) => b.length - a.length);
 
   // A large session must not crowd out all the smaller shoots at either end.
-  if (shoots.length > 1 && shoots[0].length > photos.length / 2) {
+  if (shoots.length > 1) {
     return interleave([shoots[0], interleave(shoots.slice(1))]);
   }
   return interleave(shoots);
