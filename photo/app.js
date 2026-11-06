@@ -1,5 +1,15 @@
-const PHOTOS = Array.from({ length: 71 }, (_, i) => {
-  const n = String(i + 1).padStart(2, "0"); // "01".."71"
+// Keep the gallery order fixed and spread the non-studio photos across it.
+const PHOTO_ORDER = [
+  45, 56, 51, 41, 69, 30, 17, 26, 57, 29, 24, 67,
+  6, 49, 32, 66, 22, 23, 55, 37, 38, 46, 59, 44,
+  18, 63, 10, 21, 1, 68, 19, 8, 62, 12, 34, 25,
+  71, 36, 20, 7, 52, 42, 5, 54, 15, 2, 50, 70,
+  27, 16, 61, 47, 11, 33, 65, 40, 3, 64, 31, 9,
+  4, 58, 35, 39, 60, 28, 14, 43, 53, 13, 48,
+];
+
+const PHOTOS = PHOTO_ORDER.map(photoNumber => {
+  const n = String(photoNumber).padStart(2, "0");
   return {
     src: `/photo/images/Esol-${n}.jpg`,
     title: `Esol ${n}`,
