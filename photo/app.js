@@ -3,6 +3,7 @@ const STATE_KEY = "samuel-carson:photo-deck:v1";
 const MOBILE_QUERY = "(max-width: 700px), (max-width: 1000px) and (pointer: coarse) and (max-height: 600px)";
 const mobileView = matchMedia(MOBILE_QUERY);
 const reducedMotion = matchMedia("(prefers-reduced-motion: reduce)");
+const finePointer = matchMedia("(hover: hover) and (pointer: fine)");
 const assetBase = (document.documentElement.dataset.photoBase || "/photo").replace(/\/$/, "");
 const originalBase = (document.documentElement.dataset.originalPhotoBase || assetBase).replace(/\/$/, "");
 // A code-only review can reuse the site's already-published photographs.
@@ -76,6 +77,8 @@ const sheet = document.getElementById("contact-sheet");
 const lightbox = document.getElementById("lightbox");
 const lbImg = document.getElementById("lb-img");
 const lbCap = document.getElementById("lb-cap");
+const hoverPreview = document.getElementById("hover-preview");
+const hoverImg = document.getElementById("hover-preview-img");
 let photos = buildPhotos();
 let cards = [];
 const cardNodes = new Map();
@@ -93,6 +96,77 @@ let sheetDirty = true;
 let requestedIndex = null;
 let viewerReturn = null;
 let shuffleLabelTimer;
+let overviewReturn = null;
+let hoverCandidate = null;
+let hoverRequest = 0;
+let hoverTimer;
+let hoverCloseTimer;
+let keyboardNavigation = false;
+let hoverBlockedUntil = 0;
+
+function desktopPreviewEnabled() {
+  return finePointer.matches && !mobileView.matches;
+}
+function hideHoverPreview() {
+  clearTimeout(hoverTimer);
+  clearTimeout(hoverCloseTimer);
+  hoverRequest++;
+  hoverCandidate = null;
+  hoverPreview.hidden = true;
+}
+function positionHoverPreview(origin, photo) {
+  const rect = origin.getBoundingClientRect();
+  const viewportWidth = document.documentElement.clientWidth || window.innerWidth;
+  const viewportHeight = window.innerHeight;
+  const margin = 18;
+  const topEdge = Math.min(viewportHeight - 100, Math.max(margin, browse.querySelector(".browse-header").getBoundingClientRect().bottom + 12));
+  const availableHeight = viewportHeight - topEdge - margin - 46;
+  if (availableHeight < 100 || viewportWidth < 200) return false;
+  const imageHeight = Math.min(600, availableHeight);
+  const imageWidth = Math.max(1, Math.min(420, viewportWidth - margin * 2 - 16, imageHeight * photo.width / photo.height));
+  const width = imageWidth + 16;
+  const height = imageWidth * photo.height / photo.width + 46;
+  const left = Math.max(margin, Math.min(rect.left + rect.width / 2 - width / 2, viewportWidth - width - margin));
+  const top = Math.max(topEdge, Math.min(rect.top + rect.height / 2 - height / 2 - 8, viewportHeight - height - margin));
+  Object.assign(hoverPreview.style, { width:`${width}px`, height:`${height}px`, left:`${left}px`, top:`${top}px` });
+  return true;
+}
+function scheduleHoverPreview(origin, delay = 110) {
+  if (!desktopPreviewEnabled() || !browse.open || lightbox.open || performance.now() < hoverBlockedUntil) return;
+  clearTimeout(hoverTimer);
+  clearTimeout(hoverCloseTimer);
+  if (hoverCandidate === origin && !hoverPreview.hidden) return;
+  hoverCandidate = origin;
+  const request = ++hoverRequest;
+  hoverTimer = setTimeout(() => {
+    const index = Number(origin.dataset.index);
+    const photo = photos[index];
+    if (!photo || hoverCandidate !== origin) return;
+    const image = new Image();
+    image.src = photo.preview;
+    image.decode().then(() => {
+      if (request !== hoverRequest || hoverCandidate !== origin || !desktopPreviewEnabled() || !browse.open || lightbox.open) return;
+      // A child of the native dialog escapes the sheet's scroll clipping and
+      // stays in the same top layer. The preview itself receives its clicks.
+      if (hoverPreview.parentElement !== browse) browse.append(hoverPreview);
+      if (!positionHoverPreview(origin, photo)) return;
+      hoverImg.src = photo.preview;
+      hoverPreview.dataset.index = String(index);
+      hoverPreview.setAttribute("aria-label", `View full photograph: ${photo.title}`);
+      hoverPreview.hidden = false;
+    }).catch(() => { /* A failed hover image must never block the actual photo button. */ });
+  }, delay);
+}
+function deferHoverClose() {
+  clearTimeout(hoverTimer);
+  clearTimeout(hoverCloseTimer);
+  hoverRequest++;
+  if (hoverPreview.hidden) {
+    hoverCandidate = null;
+    return;
+  }
+  hoverCloseTimer = setTimeout(hideHoverPreview, 140);
+}
 
 function saveState() {
   try { sessionStorage.setItem(STATE_KEY, JSON.stringify({ seed: shuffleSeed, rotation: shuffleRotation, file: photos[activeIndex]?.file })); }
@@ -295,6 +369,7 @@ function syncModalState() {
 }
 function openBrowse(trigger) {
   if (!photos.length) return;
+  hideHoverPreview();
   browseTrigger = trigger;
   browseSelection = null;
   if (sheetDirty) {
@@ -315,6 +390,10 @@ document.getElementById("browse-close").addEventListener("click", () => browse.c
 sheet.addEventListener("click", event => {
   const button = event.target.closest(".thumbnail");
   if (!button) return;
+  if (desktopPreviewEnabled()) {
+    openLightbox(Number(button.dataset.index));
+    return;
+  }
   browseSelection = Number(button.dataset.index);
   browse.close();
 });
@@ -330,6 +409,7 @@ sheet.addEventListener("keydown", event => {
 });
 browse.addEventListener("close", () => {
   if (browse.open) return;
+  hideHoverPreview();
   syncModalState();
   if (browseSelection !== null) {
     scrollToPhoto(browseSelection, { focus: true });
@@ -339,7 +419,11 @@ browse.addEventListener("close", () => {
 
 function openLightbox(index) {
   if (!photos.length) return;
-  if (!lightbox.open) viewerReturn = capturePosition(index);
+  hideHoverPreview();
+  if (!lightbox.open) {
+    viewerReturn = capturePosition(index);
+    overviewReturn = browse.open ? { file: photos[index].file, scrollTop:sheet.scrollTop } : null;
+  }
   setActive(index);
   const photo = photos[activeIndex];
   const request = ++lightboxRequest;
@@ -387,10 +471,54 @@ lightbox.addEventListener("close", () => {
   lbImg.removeAttribute("src");
   lightbox.setAttribute("aria-busy", "false");
   syncModalState();
-  if (viewerReturn?.file === photos[activeIndex]?.file) restorePosition(viewerReturn, { focus: true });
+  if (browse.open && overviewReturn) {
+    browseSelection = activeIndex;
+    Array.from(sheet.children).forEach((button, i) => button.setAttribute("aria-current", String(i === activeIndex)));
+    const selected = sheet.children[activeIndex];
+    selected.focus({ preventScroll:true });
+    if (overviewReturn.file === photos[activeIndex]?.file) sheet.scrollTop = overviewReturn.scrollTop;
+    else selected.scrollIntoView({ block:"nearest", behavior:"instant" });
+  }
+  else if (viewerReturn?.file === photos[activeIndex]?.file) restorePosition(viewerReturn, { focus: true });
   else scrollToPhoto(activeIndex, { focus: true });
   viewerReturn = null;
+  overviewReturn = null;
 });
+
+document.addEventListener("keydown", event => {
+  if (["Tab", "ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown", "Home", "End"].includes(event.key)) keyboardNavigation = true;
+  if (event.key === "Escape") hideHoverPreview();
+}, true);
+document.addEventListener("pointerdown", () => { keyboardNavigation = false; }, true);
+sheet.addEventListener("pointerover", event => {
+  if (event.pointerType === "touch") return;
+  const button = event.target.closest(".thumbnail");
+  if (button && !button.contains(event.relatedTarget)) scheduleHoverPreview(button);
+});
+sheet.addEventListener("pointerout", event => {
+  const button = event.target.closest(".thumbnail");
+  if (!button || button.contains(event.relatedTarget) || hoverPreview.contains(event.relatedTarget)) return;
+  deferHoverClose();
+});
+sheet.addEventListener("focusin", event => {
+  const button = event.target.closest(".thumbnail");
+  if (button && keyboardNavigation) scheduleHoverPreview(button, 0);
+});
+sheet.addEventListener("focusout", event => {
+  if (!hoverPreview.contains(event.relatedTarget)) deferHoverClose();
+});
+hoverPreview.addEventListener("pointerenter", () => { clearTimeout(hoverCloseTimer); });
+hoverPreview.addEventListener("pointerleave", deferHoverClose);
+hoverPreview.addEventListener("click", () => {
+  if (!hoverPreview.hidden) openLightbox(Number(hoverPreview.dataset.index));
+});
+sheet.addEventListener("scroll", () => {
+  hideHoverPreview();
+  hoverBlockedUntil = performance.now() + 160;
+}, { passive:true });
+window.addEventListener("resize", hideHoverPreview);
+window.addEventListener("blur", hideHoverPreview);
+finePointer.addEventListener("change", hideHoverPreview);
 grid.addEventListener("click", event => {
   const card = event.target.closest(".card");
   if (card) openLightbox(Number(card.dataset.index));

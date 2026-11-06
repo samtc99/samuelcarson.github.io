@@ -46,6 +46,23 @@ full-screen viewer; native dialogs handle Escape and focus containment.
 The gallery reserves card positions before decoding images. Downloads do not move
 other cards or reshuffle the collection. The viewer follows the same photo order.
 
+## Desktop previews
+
+Masonry cards lift on mouse hover or keyboard focus while preserving their layout
+coordinates and full opacity. In Browse, a brief hover over a thumbnail opens a
+larger uncropped preview. That clickable preview sits inside the native dialog,
+outside the contact sheet's clipping area, and stays below the header controls.
+
+Clicking either the desktop thumbnail or its raised preview opens the full-size
+viewer. Closing returns to the selected thumbnail and preserves overview scroll
+position. Navigating in the viewer updates that selected thumbnail. Touch/mobile
+thumbnail taps retain the existing jump-to-deck behavior.
+
+Hover requests are canceled on exit, scroll, resize, blur, or viewer entry. A late
+image decode cannot reopen an old card. Very short windows omit the raised
+preview rather than covering controls. Reduced-motion settings disable the lift
+animation; the image and its solid backing stay fully opaque throughout.
+
 ## Review without publishing
 
 `review/mobile-deck.html` is an interactive, single-file review page using the same
@@ -67,8 +84,8 @@ npm test
 
 These checks exercise the DOM and navigation state using jsdom, with controlled
 image decoding and viewport measurements. They do not emulate native touch
-scrolling or Safari rendering. Before approving, open the review page on a phone
-to check momentum scrolling, safe-area spacing, landscape orientation, and dialogs.
+scrolling or browser painting. Before approving, review both the mouse hover
+behavior on desktop and the mobile scrolling, spacing, orientation, and dialogs.
 
 When changing the gallery scripts or stylesheet, update their `?v=` values in
 `index.html` together so browsers fetch the matching files.

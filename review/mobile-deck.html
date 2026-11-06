@@ -1,0 +1,831 @@
+<!doctype html>
+<html lang="en" data-photo-base="https://samtc.me/photo">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="theme-color" content="#0b0b0c" />
+  <title>Preview — Samuel Carson Photography</title>
+  <meta name="robots" content="noindex,nofollow" />
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600&family=Playfair+Display:wght@500;600&display=swap" rel="stylesheet">
+  <style>
+:root { color-scheme:dark; --bg:#0b0b0c; --fg:#f5f5f5; --muted:rgba(245,245,245,.62); --accent:#10b981; --gutter:96px; --gap:10px; --radius:16px; }
+* { box-sizing:border-box; }
+html { scrollbar-gutter:stable; }
+html,body { min-height:100%; }
+body { margin:0; background:var(--bg); color:var(--fg); font:400 14px Inter,system-ui,sans-serif; }
+button,a { -webkit-tap-highlight-color:transparent; touch-action:manipulation; }
+button { font:inherit; color:inherit; cursor:pointer; border:0; }
+button:focus-visible,a:focus-visible { outline:2px solid var(--accent); outline-offset:4px; }
+.icon-defs { position:absolute; width:0; height:0; overflow:hidden; }
+.icon { display:block; width:20px; height:20px; fill:none; stroke:currentColor; stroke-width:1.4; stroke-linecap:round; stroke-linejoin:round; flex-shrink:0; }
+.accent { color:var(--accent); }
+.icon-button { display:grid; place-items:center; width:44px; height:44px; padding:0; border-radius:50%; background:transparent; flex-shrink:0; }
+.top { position:sticky; top:0; z-index:10; display:flex; justify-content:space-between; align-items:center; padding:12px 18px; background:rgba(11,11,12,.96); }
+.name { display:inline-block; color:var(--fg); text-decoration:none; font:600 20px "Playfair Display",Georgia,serif; letter-spacing:.02em; }
+.name::after { content:""; display:block; width:34px; height:2px; margin-top:8px; border-radius:2px; background:var(--accent); opacity:.9; }
+.top>.icon-button { color:var(--muted); }
+.frame { width:100%; padding:0 var(--gutter) var(--gutter); }
+.masonry { --columns:3; position:relative; width:100%; }
+.card { display:block; position:absolute; top:0; left:0; margin:0; padding:0; overflow:hidden; border-radius:var(--radius); background:rgba(255,255,255,.02); cursor:zoom-in; text-align:left; }
+.photo-picture { display:block; width:100%; }
+.card img { display:block; width:100%; height:auto; opacity:0; transition:opacity .18s ease-out,transform .3s ease; }
+.card.is-loaded img,.card.is-error img { opacity:1; }
+.photo-error { display:none; position:absolute; inset:0; place-items:center; padding:24px; background:var(--bg); color:var(--muted); text-align:center; }
+.card.is-error .photo-error { display:grid; }
+.deck-controls { display:none; }
+.sr-only { position:absolute; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden; clip-path:inset(50%); white-space:nowrap; border:0; }
+.empty-message { padding:24px; text-align:center; color:var(--muted); }
+html.modal-open { overflow:hidden; }
+dialog { color:var(--fg); border:0; }
+dialog::backdrop { background:rgba(0,0,0,.82); }
+.browse-dialog { position:fixed; inset:0; width:100%; max-width:none; height:100%; max-height:none; margin:0; padding:0; background:var(--bg); overscroll-behavior:contain; }
+.browse-dialog[open] { display:flex; flex-direction:column; }
+.browse-header { display:flex; justify-content:space-between; flex-shrink:0; align-items:flex-start; gap:16px; padding:max(26px,env(safe-area-inset-top)) max(24px,env(safe-area-inset-right)) 24px max(24px,env(safe-area-inset-left)); border-bottom:1px solid rgba(255,255,255,.07); }
+.eyebrow { margin:0 0 16px; font:500 14px "Playfair Display",Georgia,serif; color:var(--muted); }
+.browse-header h1 { margin:0; font:500 clamp(25px,4vw,34px) "Playfair Display",Georgia,serif; }
+.browse-count { margin:9px 0 0; font-size:11px; letter-spacing:.06em; color:var(--muted); }
+.contact-sheet { display:grid; grid-template-columns:repeat(6,minmax(0,1fr)); align-content:start; gap:10px; min-height:0; overflow-y:auto; padding:24px 24px max(24px,env(safe-area-inset-bottom)); overscroll-behavior:contain; }
+.thumbnail { position:relative; display:block; width:100%; padding:0; aspect-ratio:3/4; overflow:hidden; border-radius:8px; background:rgba(255,255,255,.04); }
+.thumbnail img { display:block; width:100%; height:100%; object-fit:cover; }
+.hover-preview { position:fixed; z-index:40; display:flex; flex-direction:column; margin:0; padding:8px; overflow:hidden; border:1px solid rgba(255,255,255,.16); border-radius:14px; background:var(--bg); color:var(--fg); opacity:1; box-shadow:0 24px 80px rgba(0,0,0,.75),0 4px 18px rgba(0,0,0,.5); cursor:zoom-in; animation:preview-lift .16s ease-out; }
+@keyframes preview-lift { from { transform:translateY(8px) scale(.98); } to { transform:translateY(0) scale(1); } }
+.hover-preview[hidden] { display:none; }
+.hover-preview img { display:block; width:100%; flex:1; min-height:0; object-fit:contain; border-radius:8px; background:var(--bg); opacity:1; }
+.hover-preview-label { display:block; flex-shrink:0; padding:10px 4px 3px; text-align:center; color:var(--muted); font-size:10px; letter-spacing:.035em; line-height:16px; }
+.thumbnail[aria-current="true"] { outline:2px solid var(--accent); outline-offset:-2px; }
+.thumbnail[aria-current="true"]::after { content:""; position:absolute; left:8px; bottom:8px; width:6px; height:6px; border-radius:50%; background:var(--accent); box-shadow:0 0 0 3px var(--bg); }
+.lightbox { position:fixed; inset:0; width:100%; max-width:none; height:100%; max-height:none; margin:0; padding:70px 76px 30px; background:rgba(11,11,12,.98); }
+.lightbox[open] { display:grid; place-items:center; }
+.lb-figure { width:min(1200px,100%); height:100%; min-height:0; margin:0; display:grid; grid-template-rows:minmax(0,1fr) auto; gap:16px; }
+#lb-img { display:block; width:100%; height:100%; min-height:0; object-fit:contain; border-radius:var(--radius); }
+#lb-img.is-pending { visibility:hidden; }
+#lb-cap { min-height:20px; text-align:center; color:var(--muted); font-size:12px; line-height:1.5; }
+.lightbox[aria-busy="true"] #lb-cap::after { content:" · Loading…"; }
+.lightbox .icon-button { position:absolute; background:rgba(11,11,12,.85); border:1px solid rgba(255,255,255,.12); }
+.lb-close { top:max(16px,env(safe-area-inset-top)); right:max(18px,env(safe-area-inset-right)); }
+.lb-prev,.lb-next { top:50%; transform:translateY(-50%); }
+.lb-prev { left:max(12px,env(safe-area-inset-left)); }
+.lb-next { right:max(12px,env(safe-area-inset-right)); }
+@media (hover:hover) {
+  .icon-button:hover,.text-button:hover { background:rgba(255,255,255,.06); }
+  .thumbnail:hover img { opacity:1; }
+}
+@media (min-width:701px) and (hover:hover) and (pointer:fine) {
+  .masonry { isolation:isolate; }
+  .card { overflow:visible; background:var(--bg); }
+  .card .photo-picture { overflow:hidden; border-radius:var(--radius); background:var(--bg); transition:transform .2s ease,box-shadow .2s ease; }
+  .card.is-loaded:hover,.card.is-loaded:focus-visible { z-index:2; }
+  .card.is-loaded:hover .photo-picture,.card.is-loaded:focus-visible .photo-picture { transform:translateY(-6px) scale(1.015); box-shadow:0 18px 40px rgba(0,0,0,.55); }
+}
+@media (max-width:1100px) {
+  .masonry { --columns:2; }
+  .contact-sheet { grid-template-columns:repeat(4,minmax(0,1fr)); }
+}
+@media (max-width:700px), (max-width:1000px) and (pointer:coarse) and (max-height:600px) {
+  html { height:100%; scrollbar-gutter:auto; overflow:hidden; }
+  body { height:100vh; height:100svh; min-height:0; display:flex; flex-direction:column; overflow:hidden; }
+  .top { position:relative; flex-shrink:0; padding:max(12px,env(safe-area-inset-top)) max(18px,env(safe-area-inset-right)) 12px max(18px,env(safe-area-inset-left)); }
+  .frame { display:flex; flex:1; min-height:0; padding:0; }
+  .masonry { --columns:1; flex:1; min-height:0; overflow-y:auto; overflow-x:hidden; display:flex; flex-direction:column; gap:16px; padding:0 max(18px,env(safe-area-inset-right)) 16px max(18px,env(safe-area-inset-left)); scroll-snap-type:none; overflow-anchor:none; scrollbar-width:none; overscroll-behavior-y:contain; -webkit-overflow-scrolling:touch; }
+  .masonry::-webkit-scrollbar { display:none; }
+  .card { position:relative; top:auto; left:auto; flex:0 0 auto; width:100%; height:var(--card-height); min-height:0; display:flex; background:transparent; border-radius:0; overflow:visible; scroll-margin:0; }
+  .photo-picture { display:flex; align-items:flex-start; justify-content:center; width:100%; height:100%; min-height:0; }
+  .card img { width:auto; height:auto; max-width:100%; max-height:100%; min-height:0; object-fit:contain; border-radius:var(--radius); }
+  .card.is-loaded:hover img { transform:none; }
+  .deck-controls { display:grid; grid-template-columns:1fr 1fr 1fr; align-items:center; flex-shrink:0; gap:4px; padding:8px max(14px,env(safe-area-inset-right)) max(10px,env(safe-area-inset-bottom)) max(18px,env(safe-area-inset-left)); background:var(--bg); border-top:1px solid rgba(255,255,255,.08); }
+  .photo-count { display:block; font-variant-numeric:tabular-nums; font-size:12px; color:var(--muted); letter-spacing:.035em; }
+  .text-button { display:flex; justify-content:center; align-items:center; gap:9px; min-height:44px; padding:0 8px; background:transparent; border-radius:8px; font-size:12px; }
+  .text-button:last-child { justify-self:end; }
+  .text-button .icon { width:17px; height:17px; }
+  .contact-sheet { grid-template-columns:repeat(3,minmax(0,1fr)); padding:18px 18px max(18px,env(safe-area-inset-bottom)); gap:8px; }
+  .browse-header { padding-left:18px; padding-right:18px; padding-bottom:18px; }
+  .lightbox { padding:max(68px,env(safe-area-inset-top)) 12px max(28px,env(safe-area-inset-bottom)); }
+  .lb-prev,.lb-next { top:auto; bottom:max(12px,env(safe-area-inset-bottom)); transform:none; }
+  .lb-figure { padding-bottom:52px; }
+}
+@media (prefers-reduced-motion:reduce) {
+  *,*::before,*::after { scroll-behavior:auto !important; transition:none !important; animation:none !important; }
+}
+
+</style>
+</head>
+<body>
+  <svg class="icon-defs" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+    <symbol id="icon-grid" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></symbol>
+    <symbol id="icon-shuffle" viewBox="0 0 24 24"><path d="M3 6h3c5 0 7 12 12 12h3M17 14l4 4-4 4M3 18h3c2 0 4-3 5-6M13 8c2-2 3-2 5-2h3M17 2l4 4-4 4"/></symbol>
+    <symbol id="icon-close" viewBox="0 0 24 24"><path d="m6 6 12 12M6 18 18 6"/></symbol>
+    <symbol id="icon-left" viewBox="0 0 24 24"><path d="m15 5-7 7 7 7"/></symbol>
+    <symbol id="icon-right" viewBox="0 0 24 24"><path d="m9 5 7 7-7 7"/></symbol>
+  </svg>
+  <header class="top">
+    <a class="name" href="https://samtc.me/">Samuel Carson</a>
+    <button class="icon-button browse-trigger" type="button" aria-label="Browse all photographs" aria-haspopup="dialog" aria-controls="browse"><svg class="icon" aria-hidden="true"><use href="#icon-grid"/></svg></button>
+  </header>
+  <main class="frame">
+    <div id="grid" class="masonry" role="region" aria-label="Photographs — scroll to explore"></div>
+    <noscript><p class="empty-message">Please enable JavaScript to explore the photography gallery.</p></noscript>
+  </main>
+  <nav class="deck-controls" aria-label="Gallery controls">
+    <output id="photo-count" class="photo-count" aria-label="Photo 1" aria-live="off"></output>
+    <button id="shuffle" class="text-button" type="button" aria-label="Shuffle photographs"><svg class="icon accent" aria-hidden="true"><use href="#icon-shuffle"/></svg><span>Shuffle</span></button>
+    <button class="text-button browse-trigger" type="button" aria-haspopup="dialog" aria-controls="browse"><svg class="icon" aria-hidden="true"><use href="#icon-grid"/></svg><span>Browse</span></button>
+  </nav>
+  <p id="gallery-status" class="sr-only" role="status" aria-live="polite"></p>
+  <dialog id="browse" class="browse-dialog" aria-labelledby="browse-title">
+    <header class="browse-header">
+      <div><p class="eyebrow">Samuel Carson</p><h1 id="browse-title">All photographs</h1><p id="browse-count" class="browse-count"></p></div>
+      <button id="browse-close" class="icon-button" type="button" aria-label="Close photo browser"><svg class="icon" aria-hidden="true"><use href="#icon-close"/></svg></button>
+    </header>
+    <div id="contact-sheet" class="contact-sheet"></div>
+  </dialog>
+  <button id="hover-preview" class="hover-preview" type="button" tabindex="-1" hidden>
+    <img id="hover-preview-img" alt="" />
+    <span class="hover-preview-label">Click to view full photograph</span>
+  </button>
+  <dialog id="lightbox" class="lightbox" aria-label="Full-screen photograph">
+    <button class="icon-button lb-close" type="button" aria-label="Close full-screen photograph"><svg class="icon" aria-hidden="true"><use href="#icon-close"/></svg></button>
+    <button class="icon-button lb-prev" type="button" aria-label="Previous photograph"><svg class="icon" aria-hidden="true"><use href="#icon-left"/></svg></button>
+    <button class="icon-button lb-next" type="button" aria-label="Next photograph"><svg class="icon" aria-hidden="true"><use href="#icon-right"/></svg></button>
+    <figure class="lb-figure"><img id="lb-img" alt="" /><figcaption id="lb-cap"></figcaption></figure>
+  </dialog>
+  <script>
+// Add photos here with their actual pixel dimensions.
+// Reuse a shoot name for the same session; look separates outfits/poses within it.
+const PHOTO_COLLECTION = [
+  { file: "Esol-01.jpg", width: 2000, height: 3000, shoot: "studio", look: "white-shirt" },
+  { file: "Esol-02.jpg", width: 2000, height: 3000, shoot: "studio", look: "white-shirt" },
+  { file: "Esol-03.jpg", width: 2000, height: 3000, shoot: "studio", look: "white-shirt" },
+  { file: "Esol-04.jpg", width: 2296, height: 3000, shoot: "studio", look: "shirtless" },
+  { file: "Esol-05.jpg", width: 2000, height: 3000, shoot: "studio", look: "white-shirt" },
+  { file: "Esol-06.jpg", width: 2000, height: 3000, shoot: "studio", look: "white-shirt" },
+  { file: "Esol-07.jpg", width: 2000, height: 3000, shoot: "studio", look: "white-shirt" },
+  { file: "Esol-08.jpg", width: 2000, height: 3000, shoot: "studio", look: "white-shirt" },
+  { file: "Esol-09.jpg", width: 2000, height: 3000, shoot: "studio", look: "shirtless" },
+  { file: "Esol-10.jpg", width: 2000, height: 3000, shoot: "studio", look: "shirtless" },
+  { file: "Esol-11.jpg", width: 2000, height: 3000, shoot: "studio", look: "white-shirt" },
+  { file: "Esol-12.jpg", width: 2000, height: 3000, shoot: "studio", look: "black-top" },
+  { file: "Esol-13.jpg", width: 2000, height: 3000, shoot: "studio", look: "black-top" },
+  { file: "Esol-14.jpg", width: 2000, height: 3000, shoot: "studio", look: "black-top" },
+  { file: "Esol-15.jpg", width: 2000, height: 3000, shoot: "studio", look: "white-shirt" },
+  { file: "Esol-16.jpg", width: 2000, height: 3000, shoot: "studio", look: "black-top" },
+  { file: "Esol-17.jpg", width: 2000, height: 3000, shoot: "studio", look: "black-top" },
+  { file: "Esol-18.jpg", width: 2000, height: 3000, shoot: "studio", look: "white-shirt" },
+  { file: "Esol-19.jpg", width: 2000, height: 3000, shoot: "studio", look: "white-shirt" },
+  { file: "Esol-20.jpg", width: 2000, height: 3000, shoot: "studio", look: "white-shirt" },
+  { file: "Esol-21.jpg", width: 2000, height: 3000, shoot: "studio", look: "black-top" },
+  { file: "Esol-22.jpg", width: 2000, height: 3000, shoot: "studio", look: "shirtless" },
+  { file: "Esol-23.jpg", width: 2000, height: 3000, shoot: "studio", look: "white-shirt" },
+  { file: "Esol-24.jpg", width: 2000, height: 3000, shoot: "studio", look: "white-shirt" },
+  { file: "Esol-25.jpg", width: 2296, height: 3000, shoot: "studio", look: "shirtless" },
+  { file: "Esol-26.jpg", width: 2000, height: 3000, shoot: "studio", look: "white-shirt" },
+  { file: "Esol-27.jpg", width: 2000, height: 3000, shoot: "studio", look: "shirtless" },
+  { file: "Esol-28.jpg", width: 2000, height: 3000, shoot: "studio", look: "shirtless" },
+  { file: "Esol-29.jpg", width: 2000, height: 3000, shoot: "studio", look: "black-top" },
+  { file: "Esol-30.jpg", width: 2000, height: 3000, shoot: "studio", look: "jacket" },
+  { file: "Esol-31.jpg", width: 2000, height: 3000, shoot: "studio", look: "jacket" },
+  { file: "Esol-32.jpg", width: 2000, height: 3000, shoot: "studio", look: "white-shirt" },
+  { file: "Esol-33.jpg", width: 2000, height: 3000, shoot: "studio", look: "white-shirt" },
+  { file: "Esol-34.jpg", width: 2000, height: 3000, shoot: "studio", look: "white-shirt" },
+  { file: "Esol-35.jpg", width: 2000, height: 3000, shoot: "studio", look: "white-shirt" },
+  { file: "Esol-36.jpg", width: 2128, height: 3000, shoot: "studio", look: "white-shirt" },
+  { file: "Esol-37.jpg", width: 2000, height: 3000, shoot: "studio", look: "white-shirt" },
+  { file: "Esol-38.jpg", width: 2000, height: 3000, shoot: "studio", look: "black-top" },
+  { file: "Esol-39.jpg", width: 2000, height: 3000, shoot: "studio", look: "shirtless" },
+  { file: "Esol-40.jpg", width: 2000, height: 3000, shoot: "studio", look: "shirtless" },
+  { file: "Esol-41.jpg", width: 2000, height: 3000, shoot: "studio", look: "jersey" },
+  { file: "Esol-42.jpg", width: 2000, height: 3000, shoot: "studio", look: "jersey" },
+  { file: "Esol-43.jpg", width: 1842, height: 3000, shoot: "studio", look: "jersey" },
+  { file: "Esol-44.jpg", width: 2000, height: 3000, shoot: "studio", look: "jersey" },
+  { file: "Esol-45.jpg", width: 2000, height: 3000, shoot: "studio", look: "jersey" },
+  { file: "Esol-46.jpg", width: 2000, height: 3000, shoot: "studio", look: "jersey" },
+  { file: "Esol-47.jpg", width: 2096, height: 3000, shoot: "studio", look: "jersey" },
+  { file: "Esol-48.jpg", width: 2000, height: 3000, shoot: "studio", look: "jersey" },
+  { file: "Esol-49.jpg", width: 2000, height: 3000, shoot: "studio", look: "jersey" },
+  { file: "Esol-50.jpg", width: 2000, height: 3000, shoot: "studio", look: "white-shirt" },
+  { file: "Esol-51.jpg", width: 2000, height: 3000, shoot: "studio", look: "shirtless" },
+  { file: "Esol-52.jpg", width: 1684, height: 3000, shoot: "outdoors" },
+  { file: "Esol-53.jpg", width: 2250, height: 3000, shoot: "baseball" },
+  { file: "Esol-54.jpg", width: 2250, height: 3000, shoot: "baseball" },
+  { file: "Esol-55.jpg", width: 2250, height: 3000, shoot: "baseball" },
+  { file: "Esol-56.jpg", width: 1684, height: 3000, shoot: "waterfalls" },
+  { file: "Esol-57.jpg", width: 1684, height: 3000, shoot: "baseball" },
+  { file: "Esol-58.jpg", width: 1684, height: 3000, shoot: "baseball" },
+  { file: "Esol-59.jpg", width: 1684, height: 3000, shoot: "city" },
+  { file: "Esol-60.jpg", width: 1684, height: 3000, shoot: "city" },
+  { file: "Esol-61.jpg", width: 2250, height: 3000, shoot: "city" },
+  { file: "Esol-62.jpg", width: 1580, height: 3000, shoot: "outdoors" },
+  { file: "Esol-63.jpg", width: 3000, height: 1691, shoot: "outdoors" },
+  { file: "Esol-64.jpg", width: 1688, height: 3000, shoot: "outdoors" },
+  { file: "Esol-65.jpg", width: 1903, height: 3000, shoot: "waterfalls" },
+  { file: "Esol-66.jpg", width: 2000, height: 3000, shoot: "waterfalls" },
+  { file: "Esol-67.jpg", width: 2250, height: 3000, shoot: "city" },
+  { file: "Esol-68.jpg", width: 2000, height: 3000, shoot: "outdoors" },
+  { file: "Esol-69.jpg", width: 2000, height: 3000, shoot: "outdoors" },
+  { file: "Esol-70.jpg", width: 2000, height: 3000, shoot: "city" },
+  { file: "Esol-71.jpg", width: 2000, height: 3000, shoot: "city" },
+
+  { file: "Esol-72-10.jpg", width: 2000, height: 3000, shoot: "waterfront", look: "waterfront", title: "Waterfront 10" },
+  { file: "Esol-72-11.jpg", width: 2119, height: 3000, shoot: "waterfront", look: "waterfront", title: "Waterfront 11" },
+  { file: "Esol-72-12.jpg", width: 2000, height: 3000, shoot: "waterfront", look: "waterfront", title: "Waterfront 12" },
+  { file: "Esol-72-13.jpg", width: 3000, height: 2000, shoot: "waterfront", look: "waterfront", title: "Waterfront 13" },
+  { file: "Esol-72-14.jpg", width: 2000, height: 3000, shoot: "gathering", look: "gathering", title: "Gathering 14" },
+  { file: "Esol-72-15.jpg", width: 2000, height: 3000, shoot: "gathering", look: "gathering", title: "Gathering 15" },
+  { file: "Esol-72-16.jpg", width: 2000, height: 3000, shoot: "gathering", look: "gathering", title: "Gathering 16" },
+  { file: "Esol-72-17.jpg", width: 2000, height: 3000, shoot: "shoreline", look: "shoreline", title: "Shoreline 17" },
+  { file: "Esol-72-18.jpg", width: 2000, height: 3000, shoot: "shoreline", look: "shoreline", title: "Shoreline 18" },
+  { file: "Esol-72-19.jpg", width: 2000, height: 3000, shoot: "shoreline", look: "shoreline", title: "Shoreline 19" },
+  { file: "Esol-72-2.jpg", width: 2000, height: 3000, shoot: "interiors", look: "interiors", title: "Interiors 02" },
+  { file: "Esol-72-20.jpg", width: 2000, height: 3000, shoot: "shoreline", look: "shoreline", title: "Shoreline 20" },
+  { file: "Esol-72-21.jpg", width: 2000, height: 3000, shoot: "shoreline", look: "shoreline", title: "Shoreline 21" },
+  { file: "Esol-72-22.jpg", width: 3000, height: 2000, shoot: "shoreline", look: "shoreline", title: "Shoreline 22" },
+  { file: "Esol-72-23.jpg", width: 2000, height: 3000, shoot: "engagement", look: "embrace", title: "Engagement 23" },
+  { file: "Esol-72-24.jpg", width: 2000, height: 3000, shoot: "engagement", look: "celebration", title: "Engagement 24" },
+  { file: "Esol-72-25.jpg", width: 2000, height: 3000, shoot: "engagement", look: "proposal", title: "Engagement 25" },
+  { file: "Esol-72-26.jpg", width: 3000, height: 2000, shoot: "engagement", look: "details", title: "Engagement 26" },
+  { file: "Esol-72-27.jpg", width: 2000, height: 3000, shoot: "engagement", look: "celebration", title: "Engagement 27" },
+  { file: "Esol-72-28.jpg", width: 2000, height: 3000, shoot: "engagement", look: "embrace", title: "Engagement 28" },
+  { file: "Esol-72-29.jpg", width: 2000, height: 3000, shoot: "engagement", look: "embrace", title: "Engagement 29" },
+  { file: "Esol-72-3.jpg", width: 3000, height: 2000, shoot: "interiors", look: "interiors", title: "Interiors 03" },
+  { file: "Esol-72-30.jpg", width: 2000, height: 3000, shoot: "engagement", look: "seated", title: "Engagement 30" },
+  { file: "Esol-72-31.jpg", width: 2000, height: 3000, shoot: "field-portraits", look: "field-portraits", title: "Field Portraits 31" },
+  { file: "Esol-72-32.jpg", width: 2000, height: 3000, shoot: "field-portraits", look: "field-portraits", title: "Field Portraits 32" },
+  { file: "Esol-72-33.jpg", width: 2000, height: 3000, shoot: "field-portraits", look: "field-portraits", title: "Field Portraits 33" },
+  { file: "Esol-72-34.jpg", width: 2000, height: 3000, shoot: "field-portraits", look: "field-portraits", title: "Field Portraits 34" },
+  { file: "Esol-72-35.jpg", width: 2000, height: 3000, shoot: "field-portraits", look: "field-portraits", title: "Field Portraits 35" },
+  { file: "Esol-72-4.jpg", width: 2000, height: 3000, shoot: "interiors", look: "interiors", title: "Interiors 04" },
+  { file: "Esol-72-5.jpg", width: 2000, height: 3000, shoot: "interiors", look: "interiors", title: "Interiors 05" },
+  { file: "Esol-72-6.jpg", width: 2250, height: 3000, shoot: "interiors", look: "interiors", title: "Interiors 06" },
+  { file: "Esol-72-7.jpg", width: 3000, height: 2000, shoot: "interiors", look: "interiors", title: "Interiors 07" },
+  { file: "Esol-72-8.jpg", width: 2000, height: 3000, shoot: "waterfront", look: "waterfront", title: "Waterfront 08" },
+  { file: "Esol-72-9.jpg", width: 2000, height: 3000, shoot: "waterfront", look: "waterfront", title: "Waterfront 09" },
+  { file: "Esol-72.jpg", width: 3000, height: 2000, shoot: "interiors", look: "interiors", title: "Interiors 01" },
+];
+
+</script>
+  <script>
+// The initial mix is stable. An optional shuffle is remembered for this tab.
+const STATE_KEY = "samuel-carson:photo-deck:v1";
+const MOBILE_QUERY = "(max-width: 700px), (max-width: 1000px) and (pointer: coarse) and (max-height: 600px)";
+const mobileView = matchMedia(MOBILE_QUERY);
+const reducedMotion = matchMedia("(prefers-reduced-motion: reduce)");
+const finePointer = matchMedia("(hover: hover) and (pointer: fine)");
+const assetBase = (document.documentElement.dataset.photoBase || "/photo").replace(/\/$/, "");
+const originalBase = (document.documentElement.dataset.originalPhotoBase || assetBase).replace(/\/$/, "");
+// A code-only review can reuse the site's already-published photographs.
+const useOriginals = document.documentElement.dataset.useOriginals === "true";
+
+function readSavedState() {
+  try { return JSON.parse(sessionStorage.getItem(STATE_KEY)) || {}; }
+  catch { return {}; }
+}
+const savedState = readSavedState();
+let shuffleSeed = Number.isInteger(savedState.seed) ? savedState.seed >>> 0 : 0;
+let shuffleRotation = Number.isInteger(savedState.rotation) ? savedState.rotation : 0;
+
+function photoHash(photo) {
+  let hash = 2166136261 ^ shuffleSeed;
+  for (const char of photo.file) hash = Math.imul(hash ^ char.charCodeAt(0), 16777619);
+  return hash >>> 0;
+}
+function interleave(groups) {
+  return groups.flatMap(group => group.map((photo, i) => ({ photo, position: (i + .5) / group.length })))
+    .sort((a, b) => a.position - b.position || photoHash(a.photo) - photoHash(b.photo)).map(entry => entry.photo);
+}
+function groupBy(photos, key) {
+  const groups = new Map();
+  for (const photo of photos) {
+    const name = photo[key] || photo.shoot;
+    if (!groups.has(name)) groups.set(name, []);
+    groups.get(name).push(photo);
+  }
+  return [...groups.values()];
+}
+function mixLooks(photos) {
+  const queues = groupBy(photos, "look").map(look => [...look].sort((a, b) => photoHash(a) - photoHash(b)));
+  const mixed = [];
+  let previous;
+  while (queues.some(queue => queue.length)) {
+    const available = queues.filter(queue => queue.length)
+      .sort((a, b) => b.length - a.length || photoHash(a[0]) - photoHash(b[0]));
+    const queue = available.find(group => (group[0].look || group[0].shoot) !== previous) || available[0];
+    const photo = queue.shift();
+    mixed.push(photo);
+    previous = photo.look || photo.shoot;
+  }
+  return mixed;
+}
+function mixPhotos(photos) {
+  const shoots = groupBy(photos, "shoot").map(mixLooks).sort((a, b) => b.length - a.length);
+  return shoots.length > 1 ? interleave([shoots[0], interleave(shoots.slice(1))]) : interleave(shoots);
+}
+function buildPhotos() {
+  const mixed = mixPhotos(PHOTO_COLLECTION).map(photo => {
+    const title = photo.title || photo.file.replace(/\.[^.]+$/, "").replace(/-/g, " ");
+    const rendition = photo.file.replace(/\.[^.]+$/, ".webp");
+    return { ...photo, title, alt: photo.alt || title,
+      src: `${originalBase}/images/${photo.file}`,
+      preview: useOriginals ? `${originalBase}/images/${photo.file}` : `${assetBase}/previews/${rendition}`,
+      thumb: useOriginals ? `${originalBase}/images/${photo.file}` : `${assetBase}/thumbs/${rendition}` };
+  });
+  const shift = mixed.length ? ((shuffleRotation % mixed.length) + mixed.length) % mixed.length : 0;
+  return [...mixed.slice(shift), ...mixed.slice(0, shift)];
+}
+function escapeHTML(value) {
+  return String(value).replace(/[&<>"']/g, char => ({ "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;", "'":"&#39;" })[char]);
+}
+
+const grid = document.getElementById("grid");
+const counter = document.getElementById("photo-count");
+const status = document.getElementById("gallery-status");
+const browse = document.getElementById("browse");
+const sheet = document.getElementById("contact-sheet");
+const lightbox = document.getElementById("lightbox");
+const lbImg = document.getElementById("lb-img");
+const lbCap = document.getElementById("lb-cap");
+const hoverPreview = document.getElementById("hover-preview");
+const hoverImg = document.getElementById("hover-preview-img");
+let photos = buildPhotos();
+let cards = [];
+const cardNodes = new Map();
+const decodeVersions = new WeakMap();
+let activeIndex = Math.max(0, photos.findIndex(photo => photo.file === savedState.file));
+let layoutFrame = 0;
+let scrollFrame = 0;
+let wasMobile;
+let lastWidth = 0;
+let lastStageHeight = 0;
+let lightboxRequest = 0;
+let browseSelection = null;
+let browseTrigger = null;
+let sheetDirty = true;
+let requestedIndex = null;
+let viewerReturn = null;
+let shuffleLabelTimer;
+let overviewReturn = null;
+let hoverCandidate = null;
+let hoverRequest = 0;
+let hoverTimer;
+let hoverCloseTimer;
+let keyboardNavigation = false;
+let hoverBlockedUntil = 0;
+
+function desktopPreviewEnabled() {
+  return finePointer.matches && !mobileView.matches;
+}
+function hideHoverPreview() {
+  clearTimeout(hoverTimer);
+  clearTimeout(hoverCloseTimer);
+  hoverRequest++;
+  hoverCandidate = null;
+  hoverPreview.hidden = true;
+}
+function positionHoverPreview(origin, photo) {
+  const rect = origin.getBoundingClientRect();
+  const viewportWidth = document.documentElement.clientWidth || window.innerWidth;
+  const viewportHeight = window.innerHeight;
+  const margin = 18;
+  const topEdge = Math.min(viewportHeight - 100, Math.max(margin, browse.querySelector(".browse-header").getBoundingClientRect().bottom + 12));
+  const availableHeight = viewportHeight - topEdge - margin - 46;
+  if (availableHeight < 100 || viewportWidth < 200) return false;
+  const imageHeight = Math.min(600, availableHeight);
+  const imageWidth = Math.max(1, Math.min(420, viewportWidth - margin * 2 - 16, imageHeight * photo.width / photo.height));
+  const width = imageWidth + 16;
+  const height = imageWidth * photo.height / photo.width + 46;
+  const left = Math.max(margin, Math.min(rect.left + rect.width / 2 - width / 2, viewportWidth - width - margin));
+  const top = Math.max(topEdge, Math.min(rect.top + rect.height / 2 - height / 2 - 8, viewportHeight - height - margin));
+  Object.assign(hoverPreview.style, { width:`${width}px`, height:`${height}px`, left:`${left}px`, top:`${top}px` });
+  return true;
+}
+function scheduleHoverPreview(origin, delay = 110) {
+  if (!desktopPreviewEnabled() || !browse.open || lightbox.open || performance.now() < hoverBlockedUntil) return;
+  clearTimeout(hoverTimer);
+  clearTimeout(hoverCloseTimer);
+  if (hoverCandidate === origin && !hoverPreview.hidden) return;
+  hoverCandidate = origin;
+  const request = ++hoverRequest;
+  hoverTimer = setTimeout(() => {
+    const index = Number(origin.dataset.index);
+    const photo = photos[index];
+    if (!photo || hoverCandidate !== origin) return;
+    const image = new Image();
+    image.src = photo.preview;
+    image.decode().then(() => {
+      if (request !== hoverRequest || hoverCandidate !== origin || !desktopPreviewEnabled() || !browse.open || lightbox.open) return;
+      // A child of the native dialog escapes the sheet's scroll clipping and
+      // stays in the same top layer. The preview itself receives its clicks.
+      if (hoverPreview.parentElement !== browse) browse.append(hoverPreview);
+      if (!positionHoverPreview(origin, photo)) return;
+      hoverImg.src = photo.preview;
+      hoverPreview.dataset.index = String(index);
+      hoverPreview.setAttribute("aria-label", `View full photograph: ${photo.title}`);
+      hoverPreview.hidden = false;
+    }).catch(() => { /* A failed hover image must never block the actual photo button. */ });
+  }, delay);
+}
+function deferHoverClose() {
+  clearTimeout(hoverTimer);
+  clearTimeout(hoverCloseTimer);
+  hoverRequest++;
+  if (hoverPreview.hidden) {
+    hoverCandidate = null;
+    return;
+  }
+  hoverCloseTimer = setTimeout(hideHoverPreview, 140);
+}
+
+function saveState() {
+  try { sessionStorage.setItem(STATE_KEY, JSON.stringify({ seed: shuffleSeed, rotation: shuffleRotation, file: photos[activeIndex]?.file })); }
+  catch { /* Gallery navigation also works when browser storage is unavailable. */ }
+}
+function setActive(index) {
+  const previous = cards[activeIndex];
+  activeIndex = Math.max(0, Math.min(index, photos.length - 1));
+  const count = photos.length ? activeIndex + 1 : 0;
+  counter.textContent = `${String(count).padStart(2, "0")} / ${photos.length}`;
+  counter.setAttribute("aria-label", `Photo ${count} of ${photos.length}`);
+  if (previous && previous !== cards[activeIndex]) previous.setAttribute("aria-current", "false");
+  if (cards[activeIndex]?.getAttribute("aria-current") !== "true") cards[activeIndex]?.setAttribute("aria-current", "true");
+  saveState();
+}
+function scrollToPhoto(index, { focus = false, smooth = false } = {}) {
+  if (!photos.length) return;
+  setActive(index);
+  const card = cards[activeIndex];
+  const behavior = smooth && !reducedMotion.matches ? "smooth" : "instant";
+  if (mobileView.matches) {
+    requestedIndex = activeIndex;
+    scrollDeckTo(card.offsetTop, behavior);
+  }
+  else card.scrollIntoView({ block: "center", behavior });
+  if (focus) card.focus({ preventScroll: true });
+}
+function scrollDeckTo(top, behavior = "instant") {
+  const end = Math.max(0, grid.scrollHeight - grid.clientHeight);
+  const target = Math.max(0, Math.min(top, end));
+  if (Math.abs(target - grid.scrollTop) > .5) grid.scrollTo({ top: target, behavior });
+}
+function capturePosition(index = activeIndex) {
+  return { file: photos[index]?.file, offset: grid.scrollTop - (cards[index]?.offsetTop || 0),
+    height: parseFloat(cards[index]?.style.getPropertyValue("--card-height")) || 1,
+    windowY: window.scrollY };
+}
+function restorePosition(position, { focus = false, scale = false, retainSelection = true } = {}) {
+  const index = photos.findIndex(photo => photo.file === position?.file);
+  if (index < 0) return;
+  setActive(index);
+  if (mobileView.matches) {
+    const height = parseFloat(cards[index].style.getPropertyValue("--card-height")) || position.height;
+    const offset = position.offset * (scale ? height / position.height : 1);
+    requestedIndex = retainSelection ? index : null;
+    scrollDeckTo(cards[index].offsetTop + offset);
+  } else window.scrollTo({ top: position.windowY, behavior: "instant" });
+  if (focus) cards[index].focus({ preventScroll: true });
+}
+function layoutGallery({ force = false, preservePosition = true } = {}) {
+  if (mobileView.matches) {
+    const style = getComputedStyle(grid);
+    const width = grid.clientWidth - (parseFloat(style.paddingLeft) || 0) - (parseFloat(style.paddingRight) || 0);
+    const height = grid.clientHeight;
+    if (!force && wasMobile === true && width === lastWidth && height === lastStageHeight) return;
+    const position = wasMobile === true && preservePosition ? capturePosition() : null;
+    grid.style.height = "";
+    grid.dataset.mode = "deck";
+    cards.forEach((card, i) => {
+      card.style.width = "";
+      card.style.transform = "";
+      // Reserve the actual image height, capped only for tall portraits.
+      const cardHeight = Math.min(Math.max(1, width) * photos[i].height / photos[i].width, Math.max(100, height - 32));
+      card.style.setProperty("--card-height", `${cardHeight}px`);
+    });
+    if (position) restorePosition(position, { scale: width !== lastWidth, retainSelection: requestedIndex !== null });
+    else if (preservePosition) {
+      requestedIndex = activeIndex;
+      scrollDeckTo(cards[activeIndex]?.offsetTop || 0);
+    }
+    lastWidth = width;
+    lastStageHeight = height;
+  } else {
+    grid.dataset.mode = "masonry";
+    const style = getComputedStyle(grid);
+    const columns = Number(style.getPropertyValue("--columns")) || 3;
+    const gap = parseFloat(style.getPropertyValue("--gap")) || 10;
+    const width = (grid.clientWidth - gap * (columns - 1)) / columns;
+    if (width <= 0) return;
+    const heights = Array(columns).fill(0);
+    const previousLooks = Array(columns).fill("");
+    const shootCounts = Array.from({ length: columns }, () => new Map());
+    cards.forEach((card, i) => {
+      const photo = photos[i];
+      const look = `${photo.shoot}/${photo.look || ""}`;
+      const shortest = Math.min(...heights);
+      const candidates = heights.map((_, column) => column).filter(column => heights[column] <= shortest + width * 1.5);
+      candidates.sort((a, b) => Number(previousLooks[a] === look) - Number(previousLooks[b] === look) ||
+        (shootCounts[a].get(photo.shoot) || 0) - (shootCounts[b].get(photo.shoot) || 0) || heights[a] - heights[b]);
+      const column = candidates[0];
+      card.style.width = `${width}px`;
+      card.style.transform = `translate(${column * (width + gap)}px, ${heights[column]}px)`;
+      heights[column] += width * photo.height / photo.width + gap;
+      previousLooks[column] = look;
+      shootCounts[column].set(photo.shoot, (shootCounts[column].get(photo.shoot) || 0) + 1);
+    });
+    grid.style.height = `${Math.max(0, ...heights) - (photos.length ? gap : 0)}px`;
+    if (wasMobile === true) cards[activeIndex]?.scrollIntoView({ block: "center", behavior: "instant" });
+  }
+  wasMobile = mobileView.matches;
+}
+function scheduleLayout() {
+  cancelAnimationFrame(layoutFrame);
+  layoutFrame = requestAnimationFrame(() => layoutGallery());
+}
+function revealPhoto(img) {
+  const version = (decodeVersions.get(img) || 0) + 1;
+  decodeVersions.set(img, version);
+  const source = img.currentSrc || img.src;
+  const decoded = typeof img.decode === "function" ? img.decode() : Promise.resolve();
+  decoded.then(() => {
+    if (!img.isConnected || decodeVersions.get(img) !== version || (img.currentSrc || img.src) !== source || !img.naturalWidth) return;
+    img.closest(".card").classList.remove("is-error");
+    img.closest(".card").classList.add("is-loaded");
+  }).catch(() => { /* Source switches can abort decode; only an error event is definitive. */ });
+}
+function imageFailed(img, photo) {
+  if (!img.dataset.originalFallback) {
+    img.dataset.originalFallback = "true";
+    img.closest("picture").querySelector("source")?.remove();
+    img.src = photo.src;
+  } else img.closest(".card").classList.add("is-error");
+}
+function render() {
+  sheetDirty = true;
+  document.getElementById("shuffle").disabled = photos.length < 2;
+  document.querySelectorAll(".browse-trigger").forEach(button => { button.disabled = !photos.length; });
+  const nextCards = photos.map((photo, i) => {
+    let card = cardNodes.get(photo.file);
+    if (!card) {
+      const template = document.createElement("template");
+      template.innerHTML = `
+    <button class="card" type="button" data-index="${i}" aria-label="View photo ${i + 1} of ${photos.length}: ${escapeHTML(photo.title)}">
+      <picture class="photo-picture">
+        <source media="${MOBILE_QUERY}" srcset="${escapeHTML(photo.preview)}" ${useOriginals ? "" : 'type="image/webp"'} />
+        <img src="${escapeHTML(photo.src)}" alt="${escapeHTML(photo.alt)}" width="${photo.width}" height="${photo.height}"
+          loading="${i < (mobileView.matches ? 2 : 6) ? "eager" : "lazy"}" decoding="async" fetchpriority="${i === activeIndex ? "high" : "auto"}" />
+      </picture>
+      <span class="photo-error">This photograph couldn’t load. Tap to try the original.</span>
+    </button>`;
+      card = template.content.firstElementChild;
+      const img = card.querySelector("img");
+      img.addEventListener("load", () => revealPhoto(img));
+      img.addEventListener("error", () => imageFailed(img, photo));
+      cardNodes.set(photo.file, card);
+    }
+    card.dataset.index = i;
+    card.setAttribute("aria-label", `View photo ${i + 1} of ${photos.length}: ${photo.title}`);
+    return card;
+  });
+  // Move connected cards rather than rebuilding images and clearing decoded frames.
+  nextCards.forEach((card, i) => {
+    const before = grid.children[i] || null;
+    if (before === card) return;
+    if (typeof grid.moveBefore === "function" && card.isConnected) grid.moveBefore(card, before);
+    else grid.insertBefore(card, before);
+  });
+  cards = nextCards;
+  layoutGallery({ force: true, preservePosition: false });
+  cards.forEach(card => {
+    const img = card.querySelector("img");
+    if (img.complete && !card.classList.contains("is-loaded")) {
+      if (img.naturalWidth) revealPhoto(img);
+      else if (img.currentSrc) imageFailed(img, photos[Number(card.dataset.index)]);
+    }
+  });
+  setActive(activeIndex);
+}
+function updateScrollPosition() {
+  scrollFrame = 0;
+  if (!mobileView.matches || browse.open || lightbox.open || !cards.length) return;
+  let closest = 0;
+  let distance = Infinity;
+  cards.forEach((card, i) => {
+    const delta = Math.abs(card.offsetTop - grid.scrollTop);
+    if (delta < distance) { closest = i; distance = delta; }
+  });
+  const end = Math.max(0, grid.scrollHeight - grid.clientHeight);
+  if (requestedIndex !== null) closest = requestedIndex;
+  else if (end > 0 && grid.scrollTop >= end - 2) closest = cards.length - 1;
+  if (closest !== activeIndex) setActive(closest);
+  // Prioritize the chosen photo; warm only small, immediate neighbors.
+  const neighbors = navigator.connection?.saveData || useOriginals ? [closest] : [closest, closest - 1, closest + 1];
+  for (const i of neighbors) {
+    if (!cards[i]) continue;
+    const image = cards[i].querySelector("img");
+    if (image.loading !== "eager") image.loading = "eager";
+    image.fetchPriority = i === closest ? "high" : "low";
+  }
+}
+grid.addEventListener("scroll", () => {
+  if (!scrollFrame) scrollFrame = requestAnimationFrame(updateScrollPosition);
+}, { passive: true });
+for (const type of ["wheel", "touchstart", "pointerdown", "keydown"]) {
+  grid.addEventListener(type, () => { requestedIndex = null; }, { passive: true });
+}
+
+function syncModalState() {
+  document.documentElement.classList.toggle("modal-open", browse.open || lightbox.open);
+}
+function openBrowse(trigger) {
+  if (!photos.length) return;
+  hideHoverPreview();
+  browseTrigger = trigger;
+  browseSelection = null;
+  if (sheetDirty) {
+    sheet.innerHTML = photos.map((photo, i) => `<button class="thumbnail" type="button" data-index="${i}" aria-label="Jump to photo ${i + 1}: ${escapeHTML(photo.title)}"><img src="${escapeHTML(photo.thumb)}" alt="" width="300" height="400" loading="lazy" decoding="async" fetchpriority="low" /></button>`).join("");
+    sheet.querySelectorAll("img").forEach((img, i) => img.addEventListener("error", () => { img.src = photos[i].src; }, { once: true }));
+    sheetDirty = false;
+  }
+  Array.from(sheet.children).forEach((button, i) => button.setAttribute("aria-current", String(i === activeIndex)));
+  document.getElementById("browse-count").textContent = `${photos.length} photographs · choose one to continue`;
+  browse.showModal();
+  syncModalState();
+  const selected = sheet.children[activeIndex];
+  selected.focus({ preventScroll: true });
+  selected.scrollIntoView({ block: "center", behavior: "instant" });
+}
+document.querySelectorAll(".browse-trigger").forEach(button => button.addEventListener("click", () => openBrowse(button)));
+document.getElementById("browse-close").addEventListener("click", () => browse.close());
+sheet.addEventListener("click", event => {
+  const button = event.target.closest(".thumbnail");
+  if (!button) return;
+  if (desktopPreviewEnabled()) {
+    openLightbox(Number(button.dataset.index));
+    return;
+  }
+  browseSelection = Number(button.dataset.index);
+  browse.close();
+});
+sheet.addEventListener("keydown", event => {
+  const button = event.target.closest(".thumbnail");
+  if (!button) return;
+  const columns = getComputedStyle(sheet).gridTemplateColumns.split(" ").length || 3;
+  const index = Number(button.dataset.index);
+  const destinations = { ArrowLeft:index - 1, ArrowRight:index + 1, ArrowUp:index - columns, ArrowDown:index + columns, Home:0, End:photos.length - 1 };
+  if (!(event.key in destinations)) return;
+  event.preventDefault();
+  sheet.children[Math.max(0, Math.min(destinations[event.key], photos.length - 1))].focus();
+});
+browse.addEventListener("close", () => {
+  if (browse.open) return;
+  hideHoverPreview();
+  syncModalState();
+  if (browseSelection !== null) {
+    scrollToPhoto(browseSelection, { focus: true });
+    status.textContent = `Photo ${activeIndex + 1} of ${photos.length}. ${photos[activeIndex].title}.`;
+  } else browseTrigger?.focus({ preventScroll: true });
+});
+
+function openLightbox(index) {
+  if (!photos.length) return;
+  hideHoverPreview();
+  if (!lightbox.open) {
+    viewerReturn = capturePosition(index);
+    overviewReturn = browse.open ? { file: photos[index].file, scrollTop:sheet.scrollTop } : null;
+  }
+  setActive(index);
+  const photo = photos[activeIndex];
+  const request = ++lightboxRequest;
+  const caption = `${photo.title}${photo.meta ? " — " + photo.meta : ""} · ${activeIndex + 1} / ${photos.length}`;
+  // Keep the previous decoded frame until the next one is ready to paint.
+  if (!lbImg.hasAttribute("src")) {
+    lbImg.classList.add("is-pending");
+    lbCap.textContent = "";
+  }
+  lightbox.setAttribute("aria-busy", "true");
+  if (!lightbox.open) lightbox.showModal();
+  syncModalState();
+  const image = new Image();
+  image.src = photo.src;
+  image.decode().then(() => {
+    if (request !== lightboxRequest || !lightbox.open) return;
+    lbImg.src = photo.src;
+    lbImg.alt = photo.alt;
+    lbCap.textContent = caption;
+    lbImg.classList.remove("is-pending");
+    lightbox.setAttribute("aria-busy", "false");
+  }).catch(() => {
+    if (request === lightboxRequest && lightbox.open) {
+      lbCap.textContent = "This photograph couldn’t load. Try the next photo.";
+      lightbox.setAttribute("aria-busy", "false");
+    }
+  });
+}
+function stepLightbox(direction) {
+  if (photos.length) openLightbox((activeIndex + direction + photos.length) % photos.length);
+}
+document.querySelector(".lb-close").addEventListener("click", () => lightbox.close());
+document.querySelector(".lb-prev").addEventListener("click", () => stepLightbox(-1));
+document.querySelector(".lb-next").addEventListener("click", () => stepLightbox(1));
+lightbox.addEventListener("keydown", event => {
+  if (event.key === "ArrowLeft" || event.key === "ArrowRight") {
+    event.preventDefault();
+    stepLightbox(event.key === "ArrowLeft" ? -1 : 1);
+  }
+});
+lightbox.addEventListener("click", event => { if (event.target === lightbox) lightbox.close(); });
+lightbox.addEventListener("close", () => {
+  if (lightbox.open) return;
+  lightboxRequest++;
+  lbImg.removeAttribute("src");
+  lightbox.setAttribute("aria-busy", "false");
+  syncModalState();
+  if (browse.open && overviewReturn) {
+    browseSelection = activeIndex;
+    Array.from(sheet.children).forEach((button, i) => button.setAttribute("aria-current", String(i === activeIndex)));
+    const selected = sheet.children[activeIndex];
+    selected.focus({ preventScroll:true });
+    if (overviewReturn.file === photos[activeIndex]?.file) sheet.scrollTop = overviewReturn.scrollTop;
+    else selected.scrollIntoView({ block:"nearest", behavior:"instant" });
+  }
+  else if (viewerReturn?.file === photos[activeIndex]?.file) restorePosition(viewerReturn, { focus: true });
+  else scrollToPhoto(activeIndex, { focus: true });
+  viewerReturn = null;
+  overviewReturn = null;
+});
+
+document.addEventListener("keydown", event => {
+  if (["Tab", "ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown", "Home", "End"].includes(event.key)) keyboardNavigation = true;
+  if (event.key === "Escape") hideHoverPreview();
+}, true);
+document.addEventListener("pointerdown", () => { keyboardNavigation = false; }, true);
+sheet.addEventListener("pointerover", event => {
+  if (event.pointerType === "touch") return;
+  const button = event.target.closest(".thumbnail");
+  if (button && !button.contains(event.relatedTarget)) scheduleHoverPreview(button);
+});
+sheet.addEventListener("pointerout", event => {
+  const button = event.target.closest(".thumbnail");
+  if (!button || button.contains(event.relatedTarget) || hoverPreview.contains(event.relatedTarget)) return;
+  deferHoverClose();
+});
+sheet.addEventListener("focusin", event => {
+  const button = event.target.closest(".thumbnail");
+  if (button && keyboardNavigation) scheduleHoverPreview(button, 0);
+});
+sheet.addEventListener("focusout", event => {
+  if (!hoverPreview.contains(event.relatedTarget)) deferHoverClose();
+});
+hoverPreview.addEventListener("pointerenter", () => { clearTimeout(hoverCloseTimer); });
+hoverPreview.addEventListener("pointerleave", deferHoverClose);
+hoverPreview.addEventListener("click", () => {
+  if (!hoverPreview.hidden) openLightbox(Number(hoverPreview.dataset.index));
+});
+sheet.addEventListener("scroll", () => {
+  hideHoverPreview();
+  hoverBlockedUntil = performance.now() + 160;
+}, { passive:true });
+window.addEventListener("resize", hideHoverPreview);
+window.addEventListener("blur", hideHoverPreview);
+finePointer.addEventListener("change", hideHoverPreview);
+grid.addEventListener("click", event => {
+  const card = event.target.closest(".card");
+  if (card) openLightbox(Number(card.dataset.index));
+});
+grid.addEventListener("keydown", event => {
+  if (!mobileView.matches || !event.target.closest(".card")) return;
+  const directions = { ArrowDown:1, ArrowRight:1, ArrowUp:-1, ArrowLeft:-1 };
+  if (!(event.key in directions) && event.key !== "Home" && event.key !== "End") return;
+  event.preventDefault();
+  const index = event.key === "Home" ? 0 : event.key === "End" ? photos.length - 1 : activeIndex + directions[event.key];
+  scrollToPhoto(index, { focus: true, smooth: true });
+});
+function randomPhotoIndex() {
+  if (photos.length < 2) return activeIndex;
+  // Choose from the other N-1 photographs; the current one is never returned.
+  const sample = crypto.getRandomValues(new Uint32Array(1))[0] / 4294967296;
+  const index = Math.floor(sample * (photos.length - 1));
+  return index >= activeIndex ? index + 1 : index;
+}
+document.getElementById("shuffle").addEventListener("click", () => {
+  if (photos.length < 2) return;
+  // A random jump needs no reordering or image-node replacement.
+  scrollToPhoto(randomPhotoIndex());
+  updateScrollPosition();
+  status.textContent = `Random photograph ${activeIndex + 1} of ${photos.length}. ${photos[activeIndex].title}.`;
+  const label = document.querySelector("#shuffle span");
+  label.textContent = "Shuffled";
+  clearTimeout(shuffleLabelTimer);
+  shuffleLabelTimer = setTimeout(() => { label.textContent = "Shuffle"; }, 1400);
+});
+
+new ResizeObserver(scheduleLayout).observe(grid);
+mobileView.addEventListener("change", scheduleLayout);
+render();
+requestAnimationFrame(() => {
+  layoutGallery();
+  if (savedState.file && photos.some(photo => photo.file === savedState.file)) scrollToPhoto(activeIndex);
+  updateScrollPosition();
+});
+
+</script>
+</body>
+</html>
