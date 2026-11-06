@@ -358,7 +358,7 @@ function imageFailed(img, photo) {
 }
 function render() {
   sheetDirty = true;
-  document.getElementById("shuffle").disabled = photos.length < 2;
+  document.querySelectorAll(".shuffle-trigger").forEach(button => { button.disabled = photos.length < 2; });
   document.querySelectorAll(".browse-trigger").forEach(button => { button.disabled = !photos.length; });
   const nextCards = photos.map((photo, i) => {
     let card = cardNodes.get(photo.file);
@@ -622,24 +622,37 @@ grid.addEventListener("keydown", event => {
   const index = event.key === "Home" ? 0 : event.key === "End" ? photos.length - 1 : activeIndex + directions[event.key];
   scrollToPhoto(index, { focus: true, smooth: true });
 });
-function randomPhotoIndex() {
+function randomPhotoIndex(excluded = new Set([activeIndex])) {
   if (photos.length < 2) return activeIndex;
-  // Choose from the other N-1 photographs; the current one is never returned.
+  let candidates = photos.map((_, i) => i).filter(index => !excluded.has(index));
+  if (!candidates.length) candidates = photos.map((_, i) => i).filter(index => index !== activeIndex);
   const sample = crypto.getRandomValues(new Uint32Array(1))[0] / 4294967296;
-  const index = Math.floor(sample * (photos.length - 1));
-  return index >= activeIndex ? index + 1 : index;
+  return candidates[Math.floor(sample * candidates.length)];
 }
-document.getElementById("shuffle").addEventListener("click", () => {
+function shuffleToPhoto() {
   if (photos.length < 2) return;
+  const excluded = new Set([activeIndex]);
+  if (!mobileView.matches) {
+    const top = document.querySelector(".top").getBoundingClientRect().bottom;
+    cards.forEach((card, i) => {
+      const rect = card.getBoundingClientRect();
+      if (rect.width > 0 && rect.bottom > top && rect.top < window.innerHeight && rect.right > 0 && rect.left < window.innerWidth) excluded.add(i);
+    });
+  }
+  const index = randomPhotoIndex(excluded);
+  const image = cards[index].querySelector("img");
+  image.loading = "eager";
+  image.fetchPriority = "high";
   // A random jump needs no reordering or image-node replacement.
-  scrollToPhoto(randomPhotoIndex());
+  scrollToPhoto(index);
   updateScrollPosition();
   status.textContent = `Random photograph ${activeIndex + 1} of ${photos.length}. ${photos[activeIndex].title}.`;
   const label = document.querySelector("#shuffle span");
   label.textContent = "Shuffled";
   clearTimeout(shuffleLabelTimer);
   shuffleLabelTimer = setTimeout(() => { label.textContent = "Shuffle"; }, 1400);
-});
+}
+document.querySelectorAll(".shuffle-trigger").forEach(button => button.addEventListener("click", shuffleToPhoto));
 
 new ResizeObserver(scheduleLayout).observe(grid);
 mobileView.addEventListener("change", scheduleLayout);

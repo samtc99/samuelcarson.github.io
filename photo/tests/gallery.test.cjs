@@ -822,3 +822,38 @@ test('a cached preview stays usable when its high-resolution detail fails', asyn
   assert.ok(f.d.getElementById('lb-img').src.endsWith(f.files()[0]));
   assert.deepEqual(f.errors, []);
 });
+
+test('desktop shuffle sits beside Browse and jumps past currently visible photos', async t => {
+  const f = fixture({ width:1440, height:900, coarse:false }); t.after(f.close); await tick();
+  const button = f.d.querySelector('.desktop-shuffle');
+  assert.equal(button.nextElementSibling, f.d.querySelector('.top-actions .browse-trigger'));
+  assert.equal(button.getAttribute('aria-controls'), 'grid');
+  const nodes = [...f.grid.children], files = f.files();
+  f.d.querySelector('.top').getBoundingClientRect = () => ({ bottom:68 });
+  nodes.forEach((card, i) => { card.getBoundingClientRect = () => ({ left:100, right:400, width:300, top:i < 3 ? 100 : 1100, bottom:i < 3 ? 550 : 1550 }); });
+  f.w.crypto.getRandomValues = array => { array[0] = 0; return array; };
+  button.click(); await tick();
+  assert.equal(f.state().file, files[3]);
+  assert.equal(f.scrolls.at(-1).element, nodes[3]);
+  assert.equal(nodes[3].querySelector('img').loading, 'eager');
+  assert.equal(nodes[3].querySelector('img').fetchPriority, 'high');
+  button.click(); await tick();
+  assert.equal(f.state().file, files[4]);
+  assert.deepEqual([...f.grid.children], nodes);
+  assert.deepEqual(f.files(), files);
+});
+
+test('desktop shuffle falls back to another photo if every card is already visible', async t => {
+  const f = fixture({ width:1440, height:900, coarse:false, data:'const PHOTO_COLLECTION = [{file:"one.jpg",width:2000,height:3000,shoot:"one"},{file:"two.jpg",width:2000,height:3000,shoot:"two"}];' });
+  t.after(f.close); await tick();
+  for (const card of f.grid.children) card.getBoundingClientRect = () => ({ left:100,right:400,width:300,top:100,bottom:550 });
+  const first = f.state().file;
+  f.d.querySelector('.desktop-shuffle').click();
+  assert.notEqual(f.state().file, first);
+});
+
+test('both shuffle controls are disabled for a single photograph', async t => {
+  const f = fixture({ data:'const PHOTO_COLLECTION = [{file:"one.jpg",width:2000,height:3000,shoot:"one"}];' });
+  t.after(f.close); await tick();
+  assert.ok([...f.d.querySelectorAll('.shuffle-trigger')].every(button => button.disabled));
+});

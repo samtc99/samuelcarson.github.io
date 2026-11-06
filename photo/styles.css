@@ -13,7 +13,7 @@ button:focus-visible,a:focus-visible { outline:2px solid var(--accent); outline-
 .top { position:sticky; top:0; z-index:10; display:flex; justify-content:space-between; align-items:center; padding:12px 18px; background:rgba(11,11,12,.96); }
 .name { display:inline-block; color:var(--fg); text-decoration:none; font:600 20px "Playfair Display",Georgia,serif; letter-spacing:.02em; }
 .name::after { content:""; display:block; width:34px; height:2px; margin-top:8px; border-radius:2px; background:var(--accent); opacity:.9; }
-.top>.icon-button { color:var(--muted); }
+.top-actions { display:flex; align-items:center; gap:4px; color:var(--muted); }
 .frame { width:100%; padding:0 var(--gutter) var(--gutter); }
 .masonry { --columns:3; position:relative; width:100%; }
 .card { display:block; position:absolute; top:0; left:0; margin:0; padding:0; overflow:hidden; border-radius:var(--radius); background:rgba(255,255,255,.02); cursor:zoom-in; text-align:left; }
@@ -74,6 +74,7 @@ dialog::backdrop { background:rgba(0,0,0,.82); }
   html { height:100%; scrollbar-gutter:auto; overflow:hidden; }
   body { height:100vh; height:100svh; min-height:0; display:flex; flex-direction:column; overflow:hidden; }
   .top { position:relative; flex-shrink:0; padding:max(12px,env(safe-area-inset-top)) max(18px,env(safe-area-inset-right)) 12px max(18px,env(safe-area-inset-left)); }
+  .desktop-shuffle { display:none; }
   .frame { display:flex; flex:1; min-height:0; padding:0; }
   .masonry { --columns:1; flex:1; min-height:0; overflow-y:auto; overflow-x:hidden; display:flex; flex-direction:column; gap:16px; padding:0 max(18px,env(safe-area-inset-right)) 16px max(18px,env(safe-area-inset-left)); scroll-snap-type:none; overflow-anchor:none; scrollbar-width:none; overscroll-behavior-y:contain; -webkit-overflow-scrolling:touch; }
   .masonry::-webkit-scrollbar { display:none; }
