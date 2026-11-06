@@ -18,7 +18,9 @@ function fixture({ width = 390, height = 844, coarse = true, saved, data = colle
   const dom = new JSDOM(html, { url:'https://samtc.me/photo/', runScripts:'outside-only', pretendToBeVisual:true, virtualConsole:console });
   const w = dom.window;
   const d = w.document;
+  // Retain contained-mode regression coverage alongside explicit native-page cases.
   if (documentDeck) d.documentElement.setAttribute('data-document-deck','');
+  else d.documentElement.removeAttribute('data-document-deck');
   if (originals) d.documentElement.dataset.useOriginals = 'true';
   if (assetBase) d.documentElement.dataset.photoBase = assetBase;
   if (originalBase) d.documentElement.dataset.originalPhotoBase = originalBase;
@@ -913,4 +915,11 @@ test('native-page deck holds card sizes and position while browser bar height ch
  await f.viewport(390,940);assert.equal(f.w.scrollY,before);
  assert.deepEqual([...f.grid.children].map(c=>c.style.getPropertyValue('--card-height')),heights);
  assert.equal(f.state().file,f.files()[20]);assert.deepEqual(f.errors,[]);
+});
+
+test('production entry enables document scrolling and its review keeps the live asset base', () => {
+ assert.match(html, /<html[^>]*data-document-deck/);
+ const review=fs.readFileSync(path.join(root,'../review/mobile-deck.html'),'utf8');
+ assert.match(review, /<html[^>]*data-document-deck/);
+ assert.match(review, /data-photo-base="https:\/\/samtc.me\/photo"/);
 });

@@ -70,3 +70,9 @@ in iOS 27.2 Safari. Neither mode can force the browser chrome to hide or recolor
 Reference: https://webkit.org/blog/12445/new-webkit-features-in-safari-15-4/
 explains small, large and dynamic viewport units. Prior inner-scroll toolbar
 behavior is documented at https://bugs.webkit.org/show_bug.cgi?id=231878 .
+
+## Confirmed mobile scrolling choice
+
+The user tested native page scrolling on iOS 27.2 and confirmed the browser bars
+now retract. This is the default in both the gallery entry and main review page.
+The live website remains unchanged until the review branch is approved to publish.

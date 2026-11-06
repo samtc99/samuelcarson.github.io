@@ -19,8 +19,8 @@ def main():
     parser.add_argument("--document-scroll", action="store_true", help="Build the native-page mobile scrolling experiment")
     args = parser.parse_args()
     page = (ROOT / "index.html").read_text()
-    page = page.replace('<html lang="en">', f'<html lang="en" data-photo-base="{html.escape(args.photo_base, quote=True)}">')
-    if args.document_scroll:
+    page = page.replace('<html lang="en"', f'<html lang="en" data-photo-base="{html.escape(args.photo_base, quote=True)}"', 1)
+    if args.document_scroll and "data-document-deck" not in page:
         page = page.replace('<html lang="en" ', '<html lang="en" data-document-deck ', 1)
     if args.original_base:
         page = page.replace('data-photo-base=', f'data-original-photo-base="{html.escape(args.original_base, quote=True)}" data-photo-base=', 1)
