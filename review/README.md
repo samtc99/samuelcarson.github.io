@@ -36,3 +36,25 @@ https://bugs.webkit.org/show_bug.cgi?id=301756
 The preview pull now lasts 480ms with a gentler initial acceleration and a 320ms
 return, preserving the existing current-position reversal and reduced motion.
 Native iPhone Safari tint and rendered animation still need visual review.
+
+## Card finish study and Safari isolation
+
+`card-finishes.html` compares Current, A (thin dark edge), B (stronger shadow),
+and C (edge + shadow) using the real gallery, images and hover animation.
+Regenerate after building the main review page:
+
+```sh
+python3 photo/tools/build-card-study.py
+```
+
+These are review-only treatments; production CSS is unchanged. C is the proposed
+balance for pale photographs: a fine dark edge inside the image plus a grounded
+shadow for the raised card.
+
+`safari-tint.html` isolates normal document scrolling versus contained scrolling,
+with fixed opaque dark edge surfaces. It displays local browser information and
+computed colors without transmitting it. The user reports iOS 27.2 and confirms
+having tested the latest preview. Safari 27.2 availability is confirmed at:
+https://webkit.org/blog/18515/webkit-features-for-safari-27-2/
+No physical iPhone or iOS simulator was available to reproduce the white chrome.
+The cause remains unconfirmed until these isolation modes are compared on-device.
