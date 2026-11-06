@@ -16,9 +16,12 @@ def main():
     mode.add_argument("--originals", dest="renditions", action="store_false", help="Reuse already-published originals (default)")
     mode.add_argument("--renditions", dest="renditions", action="store_true", help="Use a photo base that also hosts previews and thumbnails")
     parser.set_defaults(renditions=False)
+    parser.add_argument("--document-scroll", action="store_true", help="Build the native-page mobile scrolling experiment")
     args = parser.parse_args()
     page = (ROOT / "index.html").read_text()
-    page = page.replace('<html lang="en">', f'<html lang="en" data-photo-base="{html.escape(args.photo_base, quote=True)}">')
+    page = page.replace('<html lang="en"', f'<html lang="en" data-photo-base="{html.escape(args.photo_base, quote=True)}"', 1)
+    if args.document_scroll and "data-document-deck" not in page:
+        page = page.replace('<html lang="en" ', '<html lang="en" data-document-deck ', 1)
     if args.original_base:
         page = page.replace('data-photo-base=', f'data-original-photo-base="{html.escape(args.original_base, quote=True)}" data-photo-base=', 1)
     if not args.renditions:
@@ -33,7 +36,7 @@ def main():
         page, count = re.subn(r'<script src="\./' + name + r'\.js[^\"]*"></script>', lambda _: '<script>\n' + script + '\n</script>', page)
         if count != 1:
             raise ValueError(f"Expected one {name} script")
-    destination = ROOT.parent / "review" / "mobile-deck.html"
+    destination = ROOT.parent / "review" / ("native-scroll.html" if args.document_scroll else "mobile-deck.html")
     destination.parent.mkdir(exist_ok=True)
     destination.write_text(page)
     print(f"Built {destination.name}: {len(page.encode()):,} bytes; all styles and application scripts inline.")

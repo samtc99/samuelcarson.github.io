@@ -58,10 +58,17 @@ coordinates and full opacity. In Browse, a brief hover over a thumbnail opens a
 larger uncropped preview. That clickable preview sits inside the native dialog,
 outside the contact sheet's clipping area, and stays below the header controls.
 
-Clicking either the desktop thumbnail or its raised preview opens the full-size
-viewer. Closing returns to the selected thumbnail and preserves overview scroll
-position. Navigating in the viewer updates that selected thumbnail. Touch/mobile
-thumbnail taps retain the existing jump-to-deck behavior.
+Clicking either a desktop thumbnail or its raised preview closes Browse and
+centers and focuses the same photograph in the main feed. Touch/mobile thumbnail
+taps retain their jump-to-deck behavior. Clicking a photograph in the main feed
+still opens the original viewer.
+
+The page declares a dark color scheme and matching theme color, with an explicit
+root background for Safari's page surroundings. On mobile, the solid header and
+bottom controls are sticky at their respective viewport edges so Safari can use
+these surfaces for its browser tint. An early inline background avoids sampling
+a white page before the stylesheet arrives. Safari controls toolbar rendering;
+its translucent address and navigation controls cannot be fully restyled by a page.
 
 Hover requests are canceled on exit, scroll, resize, blur, or viewer entry. A late
 image decode cannot reopen an old card. Very short windows omit the raised
@@ -69,7 +76,7 @@ preview rather than covering controls. Reduced-motion settings disable the lift
 animation; the image and its solid backing stay fully opaque throughout.
 
 The raised card animates from its source thumbnail's real bounds using one
-uniform scale and translation (300ms eased pull, 180ms return). A cached thumbnail
+uniform scale and translation (480ms eased pull, 320ms return). A cached thumbnail
 can start the pull before the larger image is decoded; that image swaps in
 without replaying the animation. Reentering a returning card resumes from its
 current visual position. Lifecycle changes cancel motion immediately. Browsers
@@ -101,3 +108,16 @@ behavior on desktop and the mobile scrolling, spacing, orientation, and dialogs.
 
 When changing the gallery scripts or stylesheet, update their `?v=` values in
 `index.html` together so browsers fetch the matching files.
+
+## Mobile page scrolling
+
+The mobile gallery uses native document scrolling (`data-document-deck` on the
+entry page), with a sticky header and fixed bottom controls. Shuffle, Browse
+jumps, current-photo tracking and viewer return use document coordinates.
+Card heights stay stable across browser-bar height changes; width changes
+remeasure the layout. Dynamic viewport units fill the available space.
+
+The user confirmed this version allows Safari's bars to retract on iOS 27.2.
+The locked-root contained scroller remains covered by regression tests but is
+not enabled in the gallery entry page. The approved fine dark photo edge and
+raised-card shadow are included.

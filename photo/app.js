@@ -141,7 +141,7 @@ function hideHoverPreview({ animate = false } = {}) {
     const animation = hoverPreview.animate([
       { transform:cardTransform(current, box) },
       { transform:cardTransform(origin, box) }
-    ], { duration:180, easing:"cubic-bezier(.4,0,.7,.2)", fill:"forwards" });
+    ], { duration:320, easing:"cubic-bezier(.3,0,.2,1)", fill:"forwards" });
     hoverAnimation = animation;
     Promise.resolve(animation.finished).then(() => {
       if (hoverAnimation !== animation || !hoverClosing) return;
@@ -185,13 +185,13 @@ function presentHoverPreview(origin, photo, index, source) {
   hoverOrigin = origin;
   hoverImg.src = source;
   hoverPreview.dataset.index = String(index);
-  hoverPreview.setAttribute("aria-label", `View full photograph: ${photo.title}`);
+  hoverPreview.setAttribute("aria-label", `Jump to photograph in feed: ${photo.title}`);
   hoverPreview.hidden = false;
   if (!reducedMotion.matches && typeof hoverPreview.animate === "function") {
     const animation = hoverPreview.animate([
       { transform:cardTransform(start, hoverBox()) },
       { transform:"translate(0px, 0px) scale(1)" }
-    ], { duration:300, easing:"cubic-bezier(.16,1,.3,1)", fill:"none" });
+    ], { duration:480, easing:"cubic-bezier(.22,.65,.25,1)", fill:"none" });
     hoverAnimation = animation;
     Promise.resolve(animation.finished).then(() => {
       if (hoverAnimation === animation) hoverAnimation = null;
@@ -270,13 +270,27 @@ function scrollToPhoto(index, { focus = false, smooth = false, centerDesktop = f
   else card.scrollIntoView({ block: "center", behavior });
   if (focus) card.focus({ preventScroll: true });
 }
+function documentDeck() {
+  return mobileView.matches && document.documentElement.hasAttribute("data-document-deck");
+}
+function deckStart() {
+  return grid.getBoundingClientRect().top + window.scrollY - document.querySelector(".top").getBoundingClientRect().height;
+}
+function deckScrollTop() {
+  return documentDeck() ? window.scrollY - deckStart() : grid.scrollTop;
+}
+function deckScrollEnd() {
+  return documentDeck() ? Math.max(0, document.documentElement.scrollHeight - window.innerHeight - deckStart()) : Math.max(0, grid.scrollHeight - grid.clientHeight);
+}
 function scrollDeckTo(top, behavior = "instant") {
-  const end = Math.max(0, grid.scrollHeight - grid.clientHeight);
+  const end = deckScrollEnd();
   const target = Math.max(0, Math.min(top, end));
-  if (Math.abs(target - grid.scrollTop) > .5) grid.scrollTo({ top: target, behavior });
+  if (Math.abs(target - deckScrollTop()) <= .5) return;
+  if (documentDeck()) window.scrollTo({ top: target + deckStart(), behavior });
+  else grid.scrollTo({ top: target, behavior });
 }
 function capturePosition(index = activeIndex) {
-  return { file: photos[index]?.file, offset: grid.scrollTop - (cards[index]?.offsetTop || 0),
+  return { file: photos[index]?.file, offset: deckScrollTop() - (cards[index]?.offsetTop || 0),
     height: parseFloat(cards[index]?.style.getPropertyValue("--card-height")) || 1,
     windowY: window.scrollY };
 }
@@ -296,7 +310,9 @@ function layoutGallery({ force = false, preservePosition = true } = {}) {
   if (mobileView.matches) {
     const style = getComputedStyle(grid);
     const width = grid.clientWidth - (parseFloat(style.paddingLeft) || 0) - (parseFloat(style.paddingRight) || 0);
-    const height = grid.clientHeight;
+    const stageHeight = documentDeck() ? Math.max(100, window.innerHeight - document.querySelector(".top").getBoundingClientRect().height - document.querySelector(".deck-controls").getBoundingClientRect().height) : grid.clientHeight;
+    // Browser-bar animation must not resize cards and shift the document under a gesture.
+    const height = documentDeck() && wasMobile === true && width === lastWidth ? lastStageHeight : stageHeight;
     if (!force && wasMobile === true && width === lastWidth && height === lastStageHeight) return;
     const position = wasMobile === true && preservePosition ? capturePosition() : null;
     grid.style.height = "";
@@ -416,13 +432,14 @@ function updateScrollPosition() {
   if (!mobileView.matches || browse.open || lightbox.open || !cards.length) return;
   let closest = 0;
   let distance = Infinity;
+  const scrollTop = deckScrollTop();
   cards.forEach((card, i) => {
-    const delta = Math.abs(card.offsetTop - grid.scrollTop);
+    const delta = Math.abs(card.offsetTop - scrollTop);
     if (delta < distance) { closest = i; distance = delta; }
   });
-  const end = Math.max(0, grid.scrollHeight - grid.clientHeight);
+  const end = deckScrollEnd();
   if (requestedIndex !== null) closest = requestedIndex;
-  else if (end > 0 && grid.scrollTop >= end - 2) closest = cards.length - 1;
+  else if (end > 0 && scrollTop >= end - 2) closest = cards.length - 1;
   if (closest !== activeIndex) setActive(closest);
   // Prioritize the chosen photo; warm only small, immediate neighbors.
   const neighbors = navigator.connection?.saveData || useOriginals ? [closest] : [closest, closest - 1, closest + 1];
@@ -436,6 +453,10 @@ function updateScrollPosition() {
 grid.addEventListener("scroll", () => {
   if (!scrollFrame) scrollFrame = requestAnimationFrame(updateScrollPosition);
 }, { passive: true });
+window.addEventListener("scroll", () => {
+  if (documentDeck() && !scrollFrame) scrollFrame = requestAnimationFrame(updateScrollPosition);
+}, { passive:true });
+window.addEventListener("resize", () => { if (documentDeck()) scheduleLayout(); });
 for (const type of ["wheel", "touchstart", "pointerdown", "keydown"]) {
   grid.addEventListener(type, () => { requestedIndex = null; }, { passive: true });
 }
@@ -466,10 +487,6 @@ document.getElementById("browse-close").addEventListener("click", () => browse.c
 sheet.addEventListener("click", event => {
   const button = event.target.closest(".thumbnail");
   if (!button) return;
-  if (desktopPreviewEnabled()) {
-    openLightbox(Number(button.dataset.index));
-    return;
-  }
   browseSelection = Number(button.dataset.index);
   browse.close();
 });
@@ -488,7 +505,7 @@ browse.addEventListener("close", () => {
   hideHoverPreview();
   syncModalState();
   if (browseSelection !== null) {
-    scrollToPhoto(browseSelection, { focus: true });
+    scrollToPhoto(browseSelection, { focus: true, centerDesktop: true });
     status.textContent = `Photo ${activeIndex + 1} of ${photos.length}. ${photos[activeIndex].title}.`;
   } else browseTrigger?.focus({ preventScroll: true });
 });
@@ -611,7 +628,9 @@ hoverPreview.addEventListener("pointerleave", event => {
   deferHoverClose();
 });
 hoverPreview.addEventListener("click", () => {
-  if (!hoverPreview.hidden) openLightbox(Number(hoverPreview.dataset.index));
+  if (hoverPreview.hidden) return;
+  browseSelection = Number(hoverPreview.dataset.index);
+  browse.close();
 });
 sheet.addEventListener("scroll", () => {
   hideHoverPreview();

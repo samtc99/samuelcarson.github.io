@@ -1,9 +1,11 @@
 <!doctype html>
-<html lang="en" data-photo-base="https://samtc.me/photo">
+<html lang="en" data-photo-base="https://samtc.me/photo" data-document-deck>
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="color-scheme" content="dark" />
   <meta name="theme-color" content="#0b0b0c" />
+  <style>html,body { background-color:#0b0b0c; color-scheme:dark; }</style>
   <title>Preview — Samuel Carson Photography</title>
   <meta name="robots" content="noindex,nofollow" />
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -12,7 +14,7 @@
   <style>
 :root { color-scheme:dark; --bg:#0b0b0c; --fg:#f5f5f5; --muted:rgba(245,245,245,.62); --accent:#10b981; --gutter:96px; --gap:10px; --radius:16px; }
 * { box-sizing:border-box; }
-html { scrollbar-gutter:stable; }
+html { scrollbar-gutter:stable; background:var(--bg); color-scheme:dark; }
 html,body { min-height:100%; }
 body { margin:0; background:var(--bg); color:var(--fg); font:400 14px Inter,system-ui,sans-serif; }
 button,a { -webkit-tap-highlight-color:transparent; touch-action:manipulation; }
@@ -22,7 +24,7 @@ button:focus-visible,a:focus-visible { outline:2px solid var(--accent); outline-
 .icon { display:block; width:20px; height:20px; fill:none; stroke:currentColor; stroke-width:1.4; stroke-linecap:round; stroke-linejoin:round; flex-shrink:0; }
 .accent { color:var(--accent); }
 .icon-button { display:grid; place-items:center; width:44px; height:44px; padding:0; border-radius:50%; background:transparent; flex-shrink:0; }
-.top { position:sticky; top:0; z-index:10; display:flex; justify-content:space-between; align-items:center; padding:12px 18px; background:rgba(11,11,12,.96); }
+.top { position:sticky; top:0; z-index:10; display:flex; justify-content:space-between; align-items:center; padding:12px 18px; background:var(--bg); }
 .name { display:inline-block; color:var(--fg); text-decoration:none; font:600 20px "Playfair Display",Georgia,serif; letter-spacing:.02em; }
 .name::after { content:""; display:block; width:34px; height:2px; margin-top:8px; border-radius:2px; background:var(--accent); opacity:.9; }
 .top-actions { display:flex; align-items:center; gap:4px; color:var(--muted); }
@@ -30,7 +32,7 @@ button:focus-visible,a:focus-visible { outline:2px solid var(--accent); outline-
 .masonry { --columns:3; position:relative; width:100%; }
 .card { display:block; position:absolute; top:0; left:0; margin:0; padding:0; overflow:hidden; border-radius:var(--radius); background:rgba(255,255,255,.02); cursor:zoom-in; text-align:left; }
 .photo-picture { display:block; width:100%; }
-.card img { display:block; width:100%; height:auto; opacity:0; transition:opacity .18s ease-out,transform .3s ease; }
+.card img { outline:1px solid rgba(0,0,0,.3); outline-offset:-1px; display:block; width:100%; height:auto; opacity:0; transition:opacity .18s ease-out,transform .3s ease; }
 .card.is-loaded img,.card.is-error img { opacity:1; }
 .photo-error { display:none; position:absolute; inset:0; place-items:center; padding:24px; background:var(--bg); color:var(--muted); text-align:center; }
 .card.is-error .photo-error { display:grid; }
@@ -47,11 +49,11 @@ dialog::backdrop { background:rgba(0,0,0,.82); }
 .browse-header h1 { margin:0; font:500 clamp(25px,4vw,34px) "Playfair Display",Georgia,serif; }
 .browse-count { margin:9px 0 0; font-size:11px; letter-spacing:.06em; color:var(--muted); }
 .contact-sheet { display:grid; grid-template-columns:repeat(6,minmax(0,1fr)); align-content:start; gap:10px; min-height:0; overflow-y:auto; padding:24px 24px max(24px,env(safe-area-inset-bottom)); overscroll-behavior:contain; }
-.thumbnail { position:relative; display:block; width:100%; padding:0; aspect-ratio:3/4; overflow:hidden; border-radius:8px; background:rgba(255,255,255,.04); }
+.thumbnail { position:relative; isolation:isolate; display:block; width:100%; padding:0; aspect-ratio:3/4; overflow:hidden; border:1px solid rgba(0,0,0,.3); border-radius:8px; background:var(--bg); box-shadow:0 3px 12px rgba(0,0,0,.6); }
 .thumbnail img { display:block; width:100%; height:100%; object-fit:cover; }
-.hover-preview { position:fixed; z-index:40; display:flex; flex-direction:column; margin:0; padding:8px; overflow:hidden; border:1px solid rgba(255,255,255,.16); border-radius:14px; background:var(--bg); color:var(--fg); opacity:1; box-shadow:0 24px 80px rgba(0,0,0,.75),0 4px 18px rgba(0,0,0,.5); cursor:zoom-in; transform-origin:top left; will-change:transform; }
+.hover-preview { position:fixed; z-index:40; display:flex; flex-direction:column; margin:0; padding:8px; overflow:hidden; border:1px solid #747477; border-radius:14px; background:var(--bg); color:var(--fg); opacity:1; box-shadow:0 0 0 2px #101012,0 8px 16px rgba(0,0,0,.73),0 28px 60px rgba(0,0,0,.8); cursor:zoom-in; transform-origin:top left; will-change:transform; }
 .hover-preview[hidden] { display:none; }
-.hover-preview img { display:block; width:100%; flex:1; min-height:0; object-fit:contain; border-radius:8px; background:var(--bg); opacity:1; }
+.hover-preview img { outline:1px solid rgba(0,0,0,.3); outline-offset:-1px; display:block; width:100%; flex:1; min-height:0; object-fit:contain; border-radius:8px; background:var(--bg); opacity:1; }
 .hover-preview-label { display:block; flex-shrink:0; padding:10px 4px 3px; text-align:center; color:var(--muted); font-size:10px; letter-spacing:.035em; line-height:16px; }
 .thumbnail[aria-current="true"] { outline:2px solid var(--accent); outline-offset:-2px; }
 .thumbnail[aria-current="true"]::after { content:""; position:absolute; left:8px; bottom:8px; width:6px; height:6px; border-radius:50%; background:var(--accent); box-shadow:0 0 0 3px var(--bg); }
@@ -84,8 +86,8 @@ dialog::backdrop { background:rgba(0,0,0,.82); }
 }
 @media (max-width:700px), (max-width:1000px) and (pointer:coarse) and (max-height:600px) {
   html { height:100%; scrollbar-gutter:auto; overflow:hidden; }
-  body { height:100vh; height:100svh; min-height:0; display:flex; flex-direction:column; overflow:hidden; }
-  .top { position:relative; flex-shrink:0; padding:max(12px,env(safe-area-inset-top)) max(18px,env(safe-area-inset-right)) 12px max(18px,env(safe-area-inset-left)); }
+  body { height:100vh; height:100svh; height:100dvh; min-height:0; display:flex; flex-direction:column; overflow:hidden; }
+  .top { position:sticky; top:0; flex-shrink:0; padding:max(12px,env(safe-area-inset-top)) max(18px,env(safe-area-inset-right)) 12px max(18px,env(safe-area-inset-left)); }
   .desktop-shuffle { display:none; }
   .frame { display:flex; flex:1; min-height:0; padding:0; }
   .masonry { --columns:1; flex:1; min-height:0; overflow-y:auto; overflow-x:hidden; display:flex; flex-direction:column; gap:16px; padding:0 max(18px,env(safe-area-inset-right)) 16px max(18px,env(safe-area-inset-left)); scroll-snap-type:none; overflow-anchor:none; scrollbar-width:none; overscroll-behavior-y:contain; -webkit-overflow-scrolling:touch; }
@@ -94,7 +96,7 @@ dialog::backdrop { background:rgba(0,0,0,.82); }
   .photo-picture { display:flex; align-items:flex-start; justify-content:center; width:100%; height:100%; min-height:0; }
   .card img { width:auto; height:auto; max-width:100%; max-height:100%; min-height:0; object-fit:contain; border-radius:var(--radius); }
   .card.is-loaded:hover img { transform:none; }
-  .deck-controls { display:grid; grid-template-columns:1fr 1fr 1fr; align-items:center; flex-shrink:0; gap:4px; padding:8px max(14px,env(safe-area-inset-right)) max(10px,env(safe-area-inset-bottom)) max(18px,env(safe-area-inset-left)); background:var(--bg); border-top:1px solid rgba(255,255,255,.08); }
+  .deck-controls { position:sticky; bottom:0; z-index:10; display:grid; grid-template-columns:1fr 1fr 1fr; align-items:center; flex-shrink:0; gap:4px; padding:8px max(14px,env(safe-area-inset-right)) max(10px,env(safe-area-inset-bottom)) max(18px,env(safe-area-inset-left)); background:var(--bg); border-top:1px solid rgba(255,255,255,.08); }
   .photo-count { display:block; font-variant-numeric:tabular-nums; font-size:12px; color:var(--muted); letter-spacing:.035em; }
   .text-button { display:flex; justify-content:center; align-items:center; gap:9px; min-height:44px; padding:0 8px; background:transparent; border-radius:8px; font-size:12px; }
   .text-button:last-child { justify-self:end; }
@@ -107,6 +109,16 @@ dialog::backdrop { background:rgba(0,0,0,.82); }
 }
 @media (prefers-reduced-motion:reduce) {
   *,*::before,*::after { scroll-behavior:auto !important; transition:none !important; animation:none !important; }
+}
+
+/* Native page scrolling lets mobile Safari manage its browser bars. */
+@media (max-width:700px), (max-width:1000px) and (pointer:coarse) and (max-height:600px) {
+  html[data-document-deck] { height:auto; overflow:visible; }
+  html[data-document-deck] body { display:block; height:auto; min-height:100vh; min-height:100dvh; overflow:visible; }
+  html[data-document-deck] .frame { display:block; }
+  html[data-document-deck] .masonry { overflow:visible; padding-bottom:calc(84px + env(safe-area-inset-bottom)); }
+  html[data-document-deck] .deck-controls { position:fixed; left:0; right:0; bottom:0; }
+  html[data-document-deck].modal-open { overflow:hidden; }
 }
 
 </style>
@@ -145,7 +157,7 @@ dialog::backdrop { background:rgba(0,0,0,.82); }
   </dialog>
   <button id="hover-preview" class="hover-preview" type="button" tabindex="-1" hidden>
     <img id="hover-preview-img" alt="" />
-    <span class="hover-preview-label">Click to view full photograph</span>
+    <span class="hover-preview-label">Click to view in feed</span>
   </button>
   <dialog id="lightbox" class="lightbox" aria-label="Full-screen photograph">
     <button class="icon-button lb-close" type="button" aria-label="Close full-screen photograph"><svg class="icon" aria-hidden="true"><use href="#icon-close"/></svg></button>
@@ -411,7 +423,7 @@ function hideHoverPreview({ animate = false } = {}) {
     const animation = hoverPreview.animate([
       { transform:cardTransform(current, box) },
       { transform:cardTransform(origin, box) }
-    ], { duration:180, easing:"cubic-bezier(.4,0,.7,.2)", fill:"forwards" });
+    ], { duration:320, easing:"cubic-bezier(.3,0,.2,1)", fill:"forwards" });
     hoverAnimation = animation;
     Promise.resolve(animation.finished).then(() => {
       if (hoverAnimation !== animation || !hoverClosing) return;
@@ -455,13 +467,13 @@ function presentHoverPreview(origin, photo, index, source) {
   hoverOrigin = origin;
   hoverImg.src = source;
   hoverPreview.dataset.index = String(index);
-  hoverPreview.setAttribute("aria-label", `View full photograph: ${photo.title}`);
+  hoverPreview.setAttribute("aria-label", `Jump to photograph in feed: ${photo.title}`);
   hoverPreview.hidden = false;
   if (!reducedMotion.matches && typeof hoverPreview.animate === "function") {
     const animation = hoverPreview.animate([
       { transform:cardTransform(start, hoverBox()) },
       { transform:"translate(0px, 0px) scale(1)" }
-    ], { duration:300, easing:"cubic-bezier(.16,1,.3,1)", fill:"none" });
+    ], { duration:480, easing:"cubic-bezier(.22,.65,.25,1)", fill:"none" });
     hoverAnimation = animation;
     Promise.resolve(animation.finished).then(() => {
       if (hoverAnimation === animation) hoverAnimation = null;
@@ -540,13 +552,27 @@ function scrollToPhoto(index, { focus = false, smooth = false, centerDesktop = f
   else card.scrollIntoView({ block: "center", behavior });
   if (focus) card.focus({ preventScroll: true });
 }
+function documentDeck() {
+  return mobileView.matches && document.documentElement.hasAttribute("data-document-deck");
+}
+function deckStart() {
+  return grid.getBoundingClientRect().top + window.scrollY - document.querySelector(".top").getBoundingClientRect().height;
+}
+function deckScrollTop() {
+  return documentDeck() ? window.scrollY - deckStart() : grid.scrollTop;
+}
+function deckScrollEnd() {
+  return documentDeck() ? Math.max(0, document.documentElement.scrollHeight - window.innerHeight - deckStart()) : Math.max(0, grid.scrollHeight - grid.clientHeight);
+}
 function scrollDeckTo(top, behavior = "instant") {
-  const end = Math.max(0, grid.scrollHeight - grid.clientHeight);
+  const end = deckScrollEnd();
   const target = Math.max(0, Math.min(top, end));
-  if (Math.abs(target - grid.scrollTop) > .5) grid.scrollTo({ top: target, behavior });
+  if (Math.abs(target - deckScrollTop()) <= .5) return;
+  if (documentDeck()) window.scrollTo({ top: target + deckStart(), behavior });
+  else grid.scrollTo({ top: target, behavior });
 }
 function capturePosition(index = activeIndex) {
-  return { file: photos[index]?.file, offset: grid.scrollTop - (cards[index]?.offsetTop || 0),
+  return { file: photos[index]?.file, offset: deckScrollTop() - (cards[index]?.offsetTop || 0),
     height: parseFloat(cards[index]?.style.getPropertyValue("--card-height")) || 1,
     windowY: window.scrollY };
 }
@@ -566,7 +592,9 @@ function layoutGallery({ force = false, preservePosition = true } = {}) {
   if (mobileView.matches) {
     const style = getComputedStyle(grid);
     const width = grid.clientWidth - (parseFloat(style.paddingLeft) || 0) - (parseFloat(style.paddingRight) || 0);
-    const height = grid.clientHeight;
+    const stageHeight = documentDeck() ? Math.max(100, window.innerHeight - document.querySelector(".top").getBoundingClientRect().height - document.querySelector(".deck-controls").getBoundingClientRect().height) : grid.clientHeight;
+    // Browser-bar animation must not resize cards and shift the document under a gesture.
+    const height = documentDeck() && wasMobile === true && width === lastWidth ? lastStageHeight : stageHeight;
     if (!force && wasMobile === true && width === lastWidth && height === lastStageHeight) return;
     const position = wasMobile === true && preservePosition ? capturePosition() : null;
     grid.style.height = "";
@@ -686,13 +714,14 @@ function updateScrollPosition() {
   if (!mobileView.matches || browse.open || lightbox.open || !cards.length) return;
   let closest = 0;
   let distance = Infinity;
+  const scrollTop = deckScrollTop();
   cards.forEach((card, i) => {
-    const delta = Math.abs(card.offsetTop - grid.scrollTop);
+    const delta = Math.abs(card.offsetTop - scrollTop);
     if (delta < distance) { closest = i; distance = delta; }
   });
-  const end = Math.max(0, grid.scrollHeight - grid.clientHeight);
+  const end = deckScrollEnd();
   if (requestedIndex !== null) closest = requestedIndex;
-  else if (end > 0 && grid.scrollTop >= end - 2) closest = cards.length - 1;
+  else if (end > 0 && scrollTop >= end - 2) closest = cards.length - 1;
   if (closest !== activeIndex) setActive(closest);
   // Prioritize the chosen photo; warm only small, immediate neighbors.
   const neighbors = navigator.connection?.saveData || useOriginals ? [closest] : [closest, closest - 1, closest + 1];
@@ -706,6 +735,10 @@ function updateScrollPosition() {
 grid.addEventListener("scroll", () => {
   if (!scrollFrame) scrollFrame = requestAnimationFrame(updateScrollPosition);
 }, { passive: true });
+window.addEventListener("scroll", () => {
+  if (documentDeck() && !scrollFrame) scrollFrame = requestAnimationFrame(updateScrollPosition);
+}, { passive:true });
+window.addEventListener("resize", () => { if (documentDeck()) scheduleLayout(); });
 for (const type of ["wheel", "touchstart", "pointerdown", "keydown"]) {
   grid.addEventListener(type, () => { requestedIndex = null; }, { passive: true });
 }
@@ -736,10 +769,6 @@ document.getElementById("browse-close").addEventListener("click", () => browse.c
 sheet.addEventListener("click", event => {
   const button = event.target.closest(".thumbnail");
   if (!button) return;
-  if (desktopPreviewEnabled()) {
-    openLightbox(Number(button.dataset.index));
-    return;
-  }
   browseSelection = Number(button.dataset.index);
   browse.close();
 });
@@ -758,7 +787,7 @@ browse.addEventListener("close", () => {
   hideHoverPreview();
   syncModalState();
   if (browseSelection !== null) {
-    scrollToPhoto(browseSelection, { focus: true });
+    scrollToPhoto(browseSelection, { focus: true, centerDesktop: true });
     status.textContent = `Photo ${activeIndex + 1} of ${photos.length}. ${photos[activeIndex].title}.`;
   } else browseTrigger?.focus({ preventScroll: true });
 });
@@ -881,7 +910,9 @@ hoverPreview.addEventListener("pointerleave", event => {
   deferHoverClose();
 });
 hoverPreview.addEventListener("click", () => {
-  if (!hoverPreview.hidden) openLightbox(Number(hoverPreview.dataset.index));
+  if (hoverPreview.hidden) return;
+  browseSelection = Number(hoverPreview.dataset.index);
+  browse.close();
 });
 sheet.addEventListener("scroll", () => {
   hideHoverPreview();

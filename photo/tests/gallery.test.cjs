@@ -11,13 +11,16 @@ const tick = () => new Promise(resolve => setTimeout(resolve, 45));
 const hoverTick = () => new Promise(resolve => setTimeout(resolve, 165));
 
 // DOM/state tests, not a substitute for reviewing native scrolling on a phone.
-function fixture({ width = 390, height = 844, coarse = true, saved, data = collection, blockedStorage = false, reduced = false, originals = false, assetBase, originalBase, saveData = false, animations = false } = {}) {
+function fixture({ width = 390, height = 844, coarse = true, saved, data = collection, blockedStorage = false, reduced = false, originals = false, assetBase, originalBase, saveData = false, animations = false, documentDeck = false } = {}) {
   const errors = [];
   const console = new VirtualConsole();
   console.on('jsdomError', error => errors.push(error));
   const dom = new JSDOM(html, { url:'https://samtc.me/photo/', runScripts:'outside-only', pretendToBeVisual:true, virtualConsole:console });
   const w = dom.window;
   const d = w.document;
+  // Retain contained-mode regression coverage alongside explicit native-page cases.
+  if (documentDeck) d.documentElement.setAttribute('data-document-deck','');
+  else d.documentElement.removeAttribute('data-document-deck');
   if (originals) d.documentElement.dataset.useOriginals = 'true';
   if (assetBase) d.documentElement.dataset.photoBase = assetBase;
   if (originalBase) d.documentElement.dataset.originalPhotoBase = originalBase;
@@ -75,7 +78,16 @@ function fixture({ width = 390, height = 844, coarse = true, saved, data = colle
   };
   let windowY = 0;
   Object.defineProperty(w, 'scrollY', { get:() => windowY });
-  w.scrollTo = options => { windowY = options.top; };
+  w.scrollTo = options => {
+    windowY = documentDeck ? Math.max(0, Math.min(options.top, d.documentElement.scrollHeight - height)) : options.top;
+    if (documentDeck) w.dispatchEvent(new w.Event('scroll'));
+  };
+  if (documentDeck) {
+    d.querySelector('.top').getBoundingClientRect = () => ({height:68,bottom:68});
+    d.querySelector('.deck-controls').getBoundingClientRect = () => ({height:64});
+    grid.getBoundingClientRect = () => ({top:68-windowY});
+    Object.defineProperty(d.documentElement,'scrollHeight',{get:()=>68+grid.scrollHeight+84});
+  }
   w.HTMLElement.prototype.scrollIntoView = function(options) { scrolls.push({ element:this, ...options }); };
   w.HTMLDialogElement.prototype.showModal = function() {
     if (this.open) throw new Error('Dialog is already open');
@@ -570,7 +582,7 @@ test('desktop hover creates an opaque uncropped preview without moving gallery c
   assert.equal(f.w.getComputedStyle(f.d.getElementById('hover-preview-img')).opacity, '1');
 });
 
-test('moving onto the raised preview keeps it open and clicking it opens its own full photograph', async t => {
+test('moving onto the raised preview keeps it open and clicking it returns to its photograph in the feed', async t => {
   const f = fixture({ width:1440, height:900, coarse:false }); t.after(f.close); await tick();
   const thumbs = openDesktopOverview(f);
   pointer(f, thumbs[8], 'pointerover'); await hoverTick();
@@ -580,33 +592,28 @@ test('moving onto the raised preview keeps it open and clicking it opens its own
   assert.equal(preview.hidden, false);
   preview.click(); await tick();
   assert.equal(preview.hidden, true);
-  assert.equal(f.d.getElementById('browse').open, true);
-  assert.equal(f.d.getElementById('lightbox').open, true);
-  assert.ok(f.d.getElementById('lb-img').src.endsWith(f.files()[8]));
+  assert.equal(f.d.getElementById('browse').open, false);
+  assert.equal(f.d.getElementById('lightbox').open, false);
+  assert.equal(f.state().file, f.files()[8]);
 });
 
-test('desktop thumbnail clicks open full-size and closing preserves the overview position and focus', async t => {
-  const f = fixture({ width:1440, height:900, coarse:false }); t.after(f.close); await tick();
-  const thumbs = openDesktopOverview(f), sheet = f.d.getElementById('contact-sheet');
-  sheet.scrollTop = 777;
-  const mainScroll = f.grid.scrollTop;
+test('desktop thumbnail selection closes Browse and centers and focuses the same photo in the feed', async t => {
+  const f = fixture({width:1440,height:900,coarse:false}); t.after(f.close); await tick();
+  const thumbs = openDesktopOverview(f);
+  const card = f.grid.children[15];
+  card.getBoundingClientRect = () => ({top:1500,width:400});
+  f.d.querySelector('.top').getBoundingClientRect = () => ({bottom:68});
   thumbs[15].click(); await tick();
-  assert.equal(f.d.getElementById('lightbox').open, true);
-  assert.equal(f.d.getElementById('browse').open, true);
-  f.d.querySelector('.lb-close').click(); await tick();
-  assert.equal(f.d.getElementById('browse').open, true);
-  assert.equal(sheet.scrollTop, 777);
-  assert.equal(f.d.activeElement, thumbs[15]);
-  assert.equal(thumbs[15].getAttribute('aria-current'), 'true');
-  assert.equal(f.grid.scrollTop, mainScroll);
-  assert.equal(f.d.documentElement.classList.contains('modal-open'), true);
-  thumbs[15].click(); await tick();
-  f.d.querySelector('.lb-next').click(); await tick();
-  f.d.querySelector('.lb-close').click(); await tick();
-  assert.equal(f.d.activeElement, thumbs[16]);
-  assert.equal(thumbs[16].getAttribute('aria-current'), 'true');
-  f.d.getElementById('browse-close').click(); await tick();
+  assert.equal(f.d.getElementById('browse').open, false);
+  assert.equal(f.d.getElementById('lightbox').open, false);
+  assert.equal(f.d.activeElement, card);
+  assert.equal(f.state().file, f.files()[15]);
+  const img = card.querySelector('img');
+  assert.equal(f.w.scrollY, 1500 + 400 * img.height / img.width / 2 - 484);
   assert.equal(f.d.documentElement.classList.contains('modal-open'), false);
+  // The main feed still provides access to the original viewer.
+  card.click(); await tick();
+  assert.equal(f.d.getElementById('lightbox').open, true);
   assert.deepEqual(f.errors, []);
 });
 
@@ -672,7 +679,7 @@ test('keyboard focus can preview and open a desktop card without a mouse', async
   thumbs[3].focus(); await tick();
   assert.equal(f.d.getElementById('hover-preview').hidden, false);
   thumbs[3].click(); await tick();
-  assert.ok(f.d.getElementById('lb-img').src.endsWith(f.files()[3]));
+  assert.equal(f.state().file, f.files()[3]);
 });
 
 test('hover image failures leave thumbnail click navigation available', async t => {
@@ -681,7 +688,7 @@ test('hover image failures leave thumbnail click navigation available', async t 
   pointer(f, thumbs[4], 'pointerover'); await hoverTick();
   assert.equal(f.d.getElementById('hover-preview').hidden, true);
   f.reject(false); thumbs[4].click(); await tick();
-  assert.ok(f.d.getElementById('lb-img').src.endsWith(f.files()[4]));
+  assert.equal(f.state().file, f.files()[4]);
   assert.deepEqual(f.errors, []);
 });
 
@@ -691,7 +698,8 @@ test('very short desktop windows keep controls available instead of overflowing 
   pointer(f, thumbs[0], 'pointerover'); await hoverTick();
   assert.equal(f.d.getElementById('hover-preview').hidden, true);
   thumbs[0].click(); await tick();
-  assert.equal(f.d.getElementById('lightbox').open, true);
+  assert.equal(f.d.getElementById('lightbox').open, false);
+  assert.equal(f.d.getElementById('browse').open, false);
 });
 
 function motionOrigin(thumb) {
@@ -786,7 +794,8 @@ test('scroll and modal entry cancel motion immediately instead of leaving floati
   preview.click(); await tick();
   assert.equal(next.cancelled, true);
   assert.equal(preview.hidden, true);
-  assert.equal(f.d.getElementById('lightbox').open, true);
+  assert.equal(f.d.getElementById('lightbox').open, false);
+  assert.equal(f.d.getElementById('browse').open, false);
 });
 
 test('reduced motion bypasses both pull and return animations', async t => {
@@ -819,7 +828,7 @@ test('a cached preview stays usable when its high-resolution detail fails', asyn
   assert.equal(f.d.getElementById('hover-preview').hidden, false);
   assert.equal(f.d.getElementById('hover-preview-img').src, image.src);
   f.reject(false); f.d.getElementById('hover-preview').click(); await tick();
-  assert.ok(f.d.getElementById('lb-img').src.endsWith(f.files()[0]));
+  assert.equal(f.state().file, f.files()[0]);
   assert.deepEqual(f.errors, []);
 });
 
@@ -885,4 +894,32 @@ test('desktop shuffle skips page-edge photographs that cannot be centered', asyn
   f.d.querySelector('.desktop-shuffle').click();
   assert.equal(f.state().file,f.files()[3]);
   assert.ok(f.w.scrollY > 0 && f.w.scrollY < 4100);
+});
+
+test('native-page deck keeps shuffle, Browse jumps, counter and viewer return on document scrolling', async t => {
+ const f=fixture({documentDeck:true});t.after(f.close);await tick();
+ f.w.crypto.getRandomValues=a=>{a[0]=2147483648;return a;};
+ f.d.getElementById('shuffle').click();await tick();
+ const selected=f.grid.querySelector('[aria-current="true"]');
+ assert.ok(f.w.scrollY>0);assert.equal(f.w.scrollY,selected.offsetTop);assert.equal(f.grid.scrollTop,0);
+ f.d.querySelector('.browse-trigger').click();f.d.querySelectorAll('.thumbnail')[12].click();await tick();
+ assert.equal(f.state().file,f.files()[12]);assert.equal(f.w.scrollY,f.grid.children[12].offsetTop);
+ f.grid.dispatchEvent(new f.w.Event('touchstart'));f.w.scrollTo({top:f.grid.children[12].offsetTop+40});await tick();
+ const before=f.w.scrollY;f.grid.children[12].click();await tick();f.d.querySelector('.lb-close').click();await tick();
+ assert.equal(f.w.scrollY,before);assert.equal(f.state().file,f.files()[12]);assert.deepEqual(f.errors,[]);
+});
+test('native-page deck holds card sizes and position while browser bar height changes', async t => {
+ const f=fixture({documentDeck:true});t.after(f.close);await tick();
+ const heights=[...f.grid.children].map(c=>c.style.getPropertyValue('--card-height'));
+ f.grid.dispatchEvent(new f.w.Event('touchstart'));f.w.scrollTo({top:f.grid.children[20].offsetTop+55});await tick();const before=f.w.scrollY;
+ await f.viewport(390,940);assert.equal(f.w.scrollY,before);
+ assert.deepEqual([...f.grid.children].map(c=>c.style.getPropertyValue('--card-height')),heights);
+ assert.equal(f.state().file,f.files()[20]);assert.deepEqual(f.errors,[]);
+});
+
+test('production entry enables document scrolling and its review keeps the live asset base', () => {
+ assert.match(html, /<html[^>]*data-document-deck/);
+ const review=fs.readFileSync(path.join(root,'../review/mobile-deck.html'),'utf8');
+ assert.match(review, /<html[^>]*data-document-deck/);
+ assert.match(review, /data-photo-base="https:\/\/samtc.me\/photo"/);
 });
