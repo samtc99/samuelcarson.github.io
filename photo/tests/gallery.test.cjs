@@ -8,9 +8,10 @@ const html = fs.readFileSync(path.join(root, 'index.html'), 'utf8');
 const collection = fs.readFileSync(path.join(root, 'photos.js'), 'utf8');
 const app = fs.readFileSync(path.join(root, 'app.js'), 'utf8');
 const tick = () => new Promise(resolve => setTimeout(resolve, 45));
+const hoverTick = () => new Promise(resolve => setTimeout(resolve, 165));
 
 // DOM/state tests, not a substitute for reviewing native scrolling on a phone.
-function fixture({ width = 390, height = 844, coarse = true, saved, data = collection, blockedStorage = false, reduced = false, originals = false, assetBase, originalBase, saveData = false } = {}) {
+function fixture({ width = 390, height = 844, coarse = true, saved, data = collection, blockedStorage = false, reduced = false, originals = false, assetBase, originalBase, saveData = false, animations = false } = {}) {
   const errors = [];
   const console = new VirtualConsole();
   console.on('jsdomError', error => errors.push(error));
@@ -27,10 +28,13 @@ function fixture({ width = 390, height = 844, coarse = true, saved, data = colle
   const scrolls = [];
   const pending = [];
   const observers = [];
+  const motions = [];
   let holdDecodes = false;
   let rejectDecodes = false;
   const mobile = () => width <= 700 || (width <= 1000 && coarse && height <= 600);
-  const evaluateMedia = query => query.includes('prefers-reduced-motion') ? reduced : mobile();
+  const evaluateMedia = query => query.includes('prefers-reduced-motion') ? reduced : query.includes('hover: hover') ? !coarse : mobile();
+  Object.defineProperty(w, 'innerWidth', { get:() => width });
+  Object.defineProperty(w, 'innerHeight', { get:() => height });
   w.matchMedia = query => {
     if (!media.has(query)) {
       const item = new w.EventTarget();
@@ -99,10 +103,25 @@ function fixture({ width = 390, height = 844, coarse = true, saved, data = colle
     if (holdDecodes) return new Promise((resolve, reject) => pending.push({ image:this, resolve, reject }));
     return Promise.resolve();
   };
+  if (animations) {
+    w.HTMLElement.prototype.animate = function(frames, options) {
+      let resolve, reject;
+      const finished = new Promise((a, b) => { resolve = a; reject = b; });
+      const animation = { element:this, frames, options, finished, cancelled:false,
+        finish() { resolve(); }, cancel() { this.cancelled = true; reject(new Error('Animation canceled')); } };
+      motions.push(animation);
+      return animation;
+    };
+    d.getElementById('hover-preview').getBoundingClientRect = function() {
+      const left = parseFloat(this.style.left), top = parseFloat(this.style.top);
+      const width = parseFloat(this.style.width), height = parseFloat(this.style.height);
+      return { left, top, width, height, right:left + width, bottom:top + height };
+    };
+  }
   if (saved) w.sessionStorage.setItem('samuel-carson:photo-deck:v1', JSON.stringify(saved));
   if (blockedStorage) Object.defineProperty(w, 'sessionStorage', { get() { throw new Error('Storage unavailable'); } });
   w.eval(data + '\n' + app);
-  return { w, d, grid, errors, scrolls, pending, close:() => w.close(),
+  return { w, d, grid, errors, scrolls, pending, motions, close:() => w.close(),
     scrollTo(options) { grid.dispatchEvent(new w.Event('wheel')); grid.scrollTo(options); },
     async resizeObserved() { observers.forEach(callback => callback()); await tick(); },
     images:() => [...grid.querySelectorAll('img')],
@@ -516,4 +535,354 @@ test('data-saving mode loads the chosen photo without eagerly warming offscreen 
   assert.equal(f.images()[50].loading, 'eager');
   assert.equal(f.images()[49].loading, 'lazy');
   assert.equal(f.images()[51].loading, 'lazy');
+});
+
+function pointer(f, target, type, relatedTarget = null, pointerType = 'mouse') {
+  const event = new f.w.MouseEvent(type, { bubbles:true, relatedTarget });
+  Object.defineProperty(event, 'pointerType', { value:pointerType });
+  target.dispatchEvent(event);
+}
+function openDesktopOverview(f) {
+  f.d.querySelector('.browse-trigger').click();
+  const header = f.d.querySelector('.browse-header');
+  header.getBoundingClientRect = () => ({ left:0, top:0, width:f.w.innerWidth, height:150, bottom:150, right:f.w.innerWidth });
+  return [...f.d.querySelectorAll('.thumbnail')];
+}
+
+test('desktop hover creates an opaque uncropped preview without moving gallery cards or covering controls', async t => {
+  const f = fixture({ width:1440, height:900, coarse:false }); t.after(f.close); await tick();
+  const transforms = [...f.grid.children].map(card => card.style.transform);
+  const thumbs = openDesktopOverview(f);
+  const selected = thumbs[7];
+  selected.getBoundingClientRect = () => ({ left:1300, top:720, width:115, height:153, right:1415, bottom:873 });
+  pointer(f, selected, 'pointerover'); await hoverTick();
+  const preview = f.d.getElementById('hover-preview');
+  assert.equal(preview.hidden, false);
+  assert.equal(preview.parentElement, f.d.getElementById('browse'));
+  assert.equal(preview.dataset.index, '7');
+  assert.ok(f.d.getElementById('hover-preview-img').src.endsWith(f.files()[7].replace('.jpg','.webp')));
+  const left = parseFloat(preview.style.left), top = parseFloat(preview.style.top);
+  assert.ok(left >= 18 && left + parseFloat(preview.style.width) <= 1440 - 18);
+  assert.ok(top >= 162 && top + parseFloat(preview.style.height) <= 900 - 18);
+  assert.deepEqual([...f.grid.children].map(card => card.style.transform), transforms);
+  const style = f.d.createElement('style'); style.textContent = fs.readFileSync(path.join(root,'styles.css'),'utf8'); f.d.head.append(style);
+  assert.equal(f.w.getComputedStyle(preview).opacity, '1');
+  assert.equal(f.w.getComputedStyle(f.d.getElementById('hover-preview-img')).opacity, '1');
+});
+
+test('moving onto the raised preview keeps it open and clicking it opens its own full photograph', async t => {
+  const f = fixture({ width:1440, height:900, coarse:false }); t.after(f.close); await tick();
+  const thumbs = openDesktopOverview(f);
+  pointer(f, thumbs[8], 'pointerover'); await hoverTick();
+  const preview = f.d.getElementById('hover-preview');
+  pointer(f, thumbs[8], 'pointerout', preview);
+  pointer(f, preview, 'pointerenter', thumbs[8]); await hoverTick();
+  assert.equal(preview.hidden, false);
+  preview.click(); await tick();
+  assert.equal(preview.hidden, true);
+  assert.equal(f.d.getElementById('browse').open, true);
+  assert.equal(f.d.getElementById('lightbox').open, true);
+  assert.ok(f.d.getElementById('lb-img').src.endsWith(f.files()[8]));
+});
+
+test('desktop thumbnail clicks open full-size and closing preserves the overview position and focus', async t => {
+  const f = fixture({ width:1440, height:900, coarse:false }); t.after(f.close); await tick();
+  const thumbs = openDesktopOverview(f), sheet = f.d.getElementById('contact-sheet');
+  sheet.scrollTop = 777;
+  const mainScroll = f.grid.scrollTop;
+  thumbs[15].click(); await tick();
+  assert.equal(f.d.getElementById('lightbox').open, true);
+  assert.equal(f.d.getElementById('browse').open, true);
+  f.d.querySelector('.lb-close').click(); await tick();
+  assert.equal(f.d.getElementById('browse').open, true);
+  assert.equal(sheet.scrollTop, 777);
+  assert.equal(f.d.activeElement, thumbs[15]);
+  assert.equal(thumbs[15].getAttribute('aria-current'), 'true');
+  assert.equal(f.grid.scrollTop, mainScroll);
+  assert.equal(f.d.documentElement.classList.contains('modal-open'), true);
+  thumbs[15].click(); await tick();
+  f.d.querySelector('.lb-next').click(); await tick();
+  f.d.querySelector('.lb-close').click(); await tick();
+  assert.equal(f.d.activeElement, thumbs[16]);
+  assert.equal(thumbs[16].getAttribute('aria-current'), 'true');
+  f.d.getElementById('browse-close').click(); await tick();
+  assert.equal(f.d.documentElement.classList.contains('modal-open'), false);
+  assert.deepEqual(f.errors, []);
+});
+
+test('mobile touch keeps thumbnail-to-deck behavior and never enables hover previews', async t => {
+  const f = fixture(); t.after(f.close); await tick();
+  f.d.querySelector('.browse-trigger').click();
+  const thumb = f.d.querySelectorAll('.thumbnail')[9];
+  pointer(f, thumb, 'pointerover', null, 'touch'); await hoverTick();
+  assert.equal(f.d.getElementById('hover-preview').hidden, true);
+  thumb.click(); await tick();
+  assert.equal(f.d.getElementById('browse').open, false);
+  assert.equal(f.d.getElementById('lightbox').open, false);
+  assert.equal(f.state().file, f.files()[9]);
+});
+
+test('passing over a card quickly does not open a preview after the pointer leaves', async t => {
+  const f = fixture({ width:1440, height:900, coarse:false }); t.after(f.close); await tick();
+  const thumbs = openDesktopOverview(f);
+  pointer(f, thumbs[0], 'pointerover');
+  pointer(f, thumbs[0], 'pointerout', f.d.body);
+  await hoverTick();
+  assert.equal(f.d.getElementById('hover-preview').hidden, true);
+});
+
+test('late hover decodes cannot display a card that the pointer already left', async t => {
+  const f = fixture({ width:1440, height:900, coarse:false }); t.after(f.close); await tick();
+  const thumbs = openDesktopOverview(f); f.hold(true);
+  pointer(f, thumbs[0], 'pointerover'); await hoverTick();
+  pointer(f, thumbs[0], 'pointerout', thumbs[1]);
+  pointer(f, thumbs[1], 'pointerover', thumbs[0]); await hoverTick();
+  assert.equal(f.pending.length, 2);
+  f.pending[1].resolve(); await tick();
+  const preview = f.d.getElementById('hover-preview');
+  assert.equal(preview.dataset.index, '1');
+  f.pending[0].resolve(); await tick();
+  assert.equal(preview.dataset.index, '1');
+  pointer(f, preview, 'pointerleave', f.d.body); await hoverTick();
+  assert.equal(preview.hidden, true);
+});
+
+test('scrolling, resizing and closing the overview dismiss raised previews', async t => {
+  const f = fixture({ width:1440, height:900, coarse:false }); t.after(f.close); await tick();
+  const thumbs = openDesktopOverview(f), preview = f.d.getElementById('hover-preview');
+  pointer(f, thumbs[2], 'pointerover'); await hoverTick();
+  f.d.getElementById('contact-sheet').dispatchEvent(new f.w.Event('scroll'));
+  assert.equal(preview.hidden, true);
+  await hoverTick();
+  pointer(f, thumbs[3], 'pointerover'); await hoverTick();
+  assert.equal(preview.hidden, false);
+  f.w.dispatchEvent(new f.w.Event('resize'));
+  assert.equal(preview.hidden, true);
+  pointer(f, thumbs[4], 'pointermove'); await hoverTick();
+  assert.equal(preview.hidden, false);
+  f.d.getElementById('browse-close').click(); await tick();
+  assert.equal(preview.hidden, true);
+});
+
+test('keyboard focus can preview and open a desktop card without a mouse', async t => {
+  const f = fixture({ width:1440, height:900, coarse:false }); t.after(f.close); await tick();
+  const thumbs = openDesktopOverview(f);
+  assert.equal(f.d.getElementById('hover-preview').hidden, true);
+  f.d.dispatchEvent(new f.w.KeyboardEvent('keydown', { key:'Tab', bubbles:true }));
+  thumbs[3].focus(); await tick();
+  assert.equal(f.d.getElementById('hover-preview').hidden, false);
+  thumbs[3].click(); await tick();
+  assert.ok(f.d.getElementById('lb-img').src.endsWith(f.files()[3]));
+});
+
+test('hover image failures leave thumbnail click navigation available', async t => {
+  const f = fixture({ width:1440, height:900, coarse:false }); t.after(f.close); await tick();
+  const thumbs = openDesktopOverview(f); f.reject(true);
+  pointer(f, thumbs[4], 'pointerover'); await hoverTick();
+  assert.equal(f.d.getElementById('hover-preview').hidden, true);
+  f.reject(false); thumbs[4].click(); await tick();
+  assert.ok(f.d.getElementById('lb-img').src.endsWith(f.files()[4]));
+  assert.deepEqual(f.errors, []);
+});
+
+test('very short desktop windows keep controls available instead of overflowing a hover preview', async t => {
+  const f = fixture({ width:1440, height:240, coarse:false }); t.after(f.close); await tick();
+  const thumbs = openDesktopOverview(f);
+  pointer(f, thumbs[0], 'pointerover'); await hoverTick();
+  assert.equal(f.d.getElementById('hover-preview').hidden, true);
+  thumbs[0].click(); await tick();
+  assert.equal(f.d.getElementById('lightbox').open, true);
+});
+
+function motionOrigin(thumb) {
+  const rect = { left:400, top:330, width:150, height:200, right:550, bottom:530 };
+  thumb.getBoundingClientRect = () => rect;
+  return rect;
+}
+function assertFitsOrigin(transform, preview, origin) {
+  const values = transform.match(/^translate\(([-\d.]+)px, ([-\d.]+)px\) scale\(([\d.]+)\)$/);
+  assert.ok(values, 'the pull uses a translation and a single uniform scale');
+  const [, x, y, scale] = values.map(Number);
+  const width = parseFloat(preview.style.width), height = parseFloat(preview.style.height);
+  assert.ok(scale > 0 && scale < 1);
+  assert.ok(width * scale <= origin.width + .001);
+  assert.ok(height * scale <= origin.height + .001);
+  assert.ok(Math.abs(parseFloat(preview.style.left) + x + width * scale / 2 - origin.left - origin.width / 2) < .001);
+  assert.ok(Math.abs(parseFloat(preview.style.top) + y + height * scale / 2 - origin.top - origin.height / 2) < .001);
+}
+
+test('the pull grows from the actual thumbnail bounds with uniform, fully opaque motion', async t => {
+  const f = fixture({ width:1440, height:900, coarse:false, animations:true }); t.after(f.close); await tick();
+  const thumbs = openDesktopOverview(f), origin = motionOrigin(thumbs[0]);
+  pointer(f, thumbs[0], 'pointerover'); await hoverTick();
+  const preview = f.d.getElementById('hover-preview');
+  assert.equal(f.motions.length, 1);
+  const motion = f.motions[0];
+  assertFitsOrigin(motion.frames[0].transform, preview, origin);
+  assert.equal(motion.frames[1].transform, 'translate(0px, 0px) scale(1)');
+  assert.ok(motion.frames.every(frame => Object.keys(frame).every(key => key === 'transform')));
+  assert.equal(preview.hidden, false);
+});
+
+test('cached thumbnail starts the pull before detail download and sharper pixels do not restart it', async t => {
+  const f = fixture({ width:1440, height:900, coarse:false, animations:true }); t.after(f.close); await tick();
+  const thumbs = openDesktopOverview(f); motionOrigin(thumbs[0]);
+  const thumbImg = thumbs[0].querySelector('img'); f.load(thumbImg); f.hold(true);
+  pointer(f, thumbs[0], 'pointerover'); await hoverTick();
+  const preview = f.d.getElementById('hover-preview'), image = f.d.getElementById('hover-preview-img');
+  assert.equal(preview.hidden, false);
+  assert.equal(image.src, thumbImg.src);
+  assert.equal(f.motions.length, 1);
+  assert.equal(f.pending.length, 1);
+  f.pending[0].resolve(); await tick();
+  assert.ok(image.src.includes('/previews/'));
+  assert.equal(f.motions.length, 1);
+});
+
+test('leaving returns the card toward its thumbnail before hiding', async t => {
+  const f = fixture({ width:1440, height:900, coarse:false, animations:true }); t.after(f.close); await tick();
+  const thumbs = openDesktopOverview(f), origin = motionOrigin(thumbs[0]);
+  pointer(f, thumbs[0], 'pointerover'); await hoverTick();
+  f.motions[0].finish(); await tick();
+  const preview = f.d.getElementById('hover-preview');
+  pointer(f, preview, 'pointerleave', f.d.body); await hoverTick();
+  assert.equal(preview.hidden, false);
+  assert.equal(f.motions.length, 2);
+  assertFitsOrigin(f.motions[1].frames[1].transform, preview, origin);
+  f.motions[1].finish(); await tick();
+  assert.equal(preview.hidden, true);
+});
+
+test('reentering a returning card cancels stale completion and reverses from the current visual bounds', async t => {
+  const f = fixture({ width:1440, height:900, coarse:false, animations:true }); t.after(f.close); await tick();
+  const thumbs = openDesktopOverview(f); motionOrigin(thumbs[0]);
+  pointer(f, thumbs[0], 'pointerover'); await hoverTick();
+  f.motions[0].finish(); await tick();
+  const preview = f.d.getElementById('hover-preview');
+  pointer(f, preview, 'pointerleave', f.d.body); await hoverTick();
+  const returning = f.motions[1];
+  preview.getBoundingClientRect = () => ({ left:410, top:340, width:120, height:180 });
+  returning.finish();
+  pointer(f, preview, 'pointerenter', f.d.body); await tick();
+  assert.equal(returning.cancelled, true);
+  assert.equal(preview.hidden, false);
+  assert.equal(f.motions.length, 3);
+  assertFitsOrigin(f.motions[2].frames[0].transform, preview, { left:410, top:340, width:120, height:180 });
+});
+
+test('scroll and modal entry cancel motion immediately instead of leaving floating cards', async t => {
+  const f = fixture({ width:1440, height:900, coarse:false, animations:true }); t.after(f.close); await tick();
+  const thumbs = openDesktopOverview(f); motionOrigin(thumbs[0]);
+  pointer(f, thumbs[0], 'pointerover'); await hoverTick();
+  const preview = f.d.getElementById('hover-preview'), first = f.motions[0];
+  f.d.getElementById('contact-sheet').dispatchEvent(new f.w.Event('scroll'));
+  assert.equal(first.cancelled, true);
+  assert.equal(preview.hidden, true);
+  first.finish(); await tick();
+  assert.equal(preview.hidden, true);
+  await hoverTick();
+  pointer(f, thumbs[0], 'pointerover'); await hoverTick();
+  const next = f.motions.at(-1);
+  preview.click(); await tick();
+  assert.equal(next.cancelled, true);
+  assert.equal(preview.hidden, true);
+  assert.equal(f.d.getElementById('lightbox').open, true);
+});
+
+test('reduced motion bypasses both pull and return animations', async t => {
+  const f = fixture({ width:1440, height:900, coarse:false, animations:true, reduced:true }); t.after(f.close); await tick();
+  const thumbs = openDesktopOverview(f); motionOrigin(thumbs[0]);
+  pointer(f, thumbs[0], 'pointerover'); await hoverTick();
+  const preview = f.d.getElementById('hover-preview');
+  assert.equal(preview.hidden, false);
+  assert.equal(f.motions.length, 0);
+  pointer(f, preview, 'pointerleave', f.d.body); await hoverTick();
+  assert.equal(preview.hidden, true);
+  assert.equal(f.motions.length, 0);
+});
+
+test('a moving preview uncovering its source at viewport edges does not oscillate closed', async t => {
+  const f = fixture({ width:1440, height:900, coarse:false, animations:true }); t.after(f.close); await tick();
+  const thumbs = openDesktopOverview(f); motionOrigin(thumbs[0]);
+  pointer(f, thumbs[0], 'pointerover'); await hoverTick();
+  const preview = f.d.getElementById('hover-preview');
+  pointer(f, preview, 'pointerleave', thumbs[0]); await hoverTick();
+  assert.equal(preview.hidden, false);
+  assert.equal(f.motions.length, 1);
+});
+
+test('a cached preview stays usable when its high-resolution detail fails', async t => {
+  const f = fixture({ width:1440, height:900, coarse:false, animations:true }); t.after(f.close); await tick();
+  const thumbs = openDesktopOverview(f); motionOrigin(thumbs[0]);
+  const image = thumbs[0].querySelector('img'); f.load(image); f.reject(true);
+  pointer(f, thumbs[0], 'pointerover'); await hoverTick();
+  assert.equal(f.d.getElementById('hover-preview').hidden, false);
+  assert.equal(f.d.getElementById('hover-preview-img').src, image.src);
+  f.reject(false); f.d.getElementById('hover-preview').click(); await tick();
+  assert.ok(f.d.getElementById('lb-img').src.endsWith(f.files()[0]));
+  assert.deepEqual(f.errors, []);
+});
+
+test('desktop shuffle sits beside Browse and jumps past currently visible photos', async t => {
+  const f = fixture({ width:1440, height:900, coarse:false }); t.after(f.close); await tick();
+  const button = f.d.querySelector('.desktop-shuffle');
+  assert.equal(button.nextElementSibling, f.d.querySelector('.top-actions .browse-trigger'));
+  assert.equal(button.getAttribute('aria-controls'), 'grid');
+  const nodes = [...f.grid.children], files = f.files();
+  f.d.querySelector('.top').getBoundingClientRect = () => ({ bottom:68 });
+  nodes.forEach((card, i) => { card.getBoundingClientRect = () => ({ left:100, right:400, width:300, top:i < 3 ? 100 : 1100, bottom:i < 3 ? 550 : 1550 }); });
+  f.w.crypto.getRandomValues = array => { array[0] = 0; return array; };
+  button.click(); await tick();
+  assert.equal(f.state().file, files[3]);
+  const photo = nodes[3].querySelector('img');
+  const expected = 1100 + 300 * Number(photo.height) / Number(photo.width) / 2 - (68 + 900) / 2;
+  assert.equal(f.w.scrollY, expected);
+  assert.equal(nodes[3].querySelector('img').loading, 'eager');
+  assert.equal(nodes[3].querySelector('img').fetchPriority, 'high');
+  button.click(); await tick();
+  assert.equal(f.state().file, files[4]);
+  assert.deepEqual([...f.grid.children], nodes);
+  assert.deepEqual(f.files(), files);
+});
+
+test('desktop shuffle falls back to another photo if every card is already visible', async t => {
+  const f = fixture({ width:1440, height:900, coarse:false, data:'const PHOTO_COLLECTION = [{file:"one.jpg",width:2000,height:3000,shoot:"one"},{file:"two.jpg",width:2000,height:3000,shoot:"two"}];' });
+  t.after(f.close); await tick();
+  for (const card of f.grid.children) card.getBoundingClientRect = () => ({ left:100,right:400,width:300,top:100,bottom:550 });
+  const first = f.state().file;
+  f.d.querySelector('.desktop-shuffle').click();
+  assert.notEqual(f.state().file, first);
+});
+
+test('both shuffle controls are disabled for a single photograph', async t => {
+  const f = fixture({ data:'const PHOTO_COLLECTION = [{file:"one.jpg",width:2000,height:3000,shoot:"one"}];' });
+  t.after(f.close); await tick();
+  assert.ok([...f.d.querySelectorAll('.shuffle-trigger')].every(button => button.disabled));
+});
+
+test('desktop shuffle centers the selected image below the header before decoding, from an existing scroll position', async t => {
+  for (const height of [700, 1100]) {
+    const f = fixture({ width:1440, height, coarse:false }); t.after(f.close); await tick();
+    f.w.scrollTo({top:1800});
+    f.d.querySelector('.top').getBoundingClientRect = () => ({bottom:72});
+    [...f.grid.children].forEach(card => { card.getBoundingClientRect = () => ({left:100,right:500,width:400,top:1500,bottom:2100}); });
+    f.w.crypto.getRandomValues = array => { array[0] = 0; return array; };
+    f.d.querySelector('.desktop-shuffle').click();
+    const selected = f.grid.querySelector('[aria-current="true"] img');
+    const imageCenter = 1800 + 1500 + 400 * selected.height / selected.width / 2;
+    assert.equal(imageCenter - f.w.scrollY, (72 + height) / 2);
+    assert.deepEqual(f.errors, []);
+  }
+});
+
+test('desktop shuffle skips page-edge photographs that cannot be centered', async t => {
+  const f = fixture({width:1440,height:900,coarse:false}); t.after(f.close); await tick();
+  Object.defineProperty(f.d.documentElement, 'scrollHeight', {value:5000});
+  f.d.querySelector('.top').getBoundingClientRect = () => ({bottom:68});
+  const nodes = [...f.grid.children];
+  nodes.forEach((card,i) => { card.getBoundingClientRect = () => ({left:100,right:400,width:300,top:i < 3 ? 4900 : 1500,bottom:i < 3 ? 5350 : 1950}); });
+  f.w.crypto.getRandomValues = array => {array[0]=0;return array;};
+  f.d.querySelector('.desktop-shuffle').click();
+  assert.equal(f.state().file,f.files()[3]);
+  assert.ok(f.w.scrollY > 0 && f.w.scrollY < 4100);
 });

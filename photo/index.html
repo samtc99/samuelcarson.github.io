@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600&family=Playfair+Display:wght@500;600&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="./styles.css?v=mobile-deck-1" />
+  <link rel="stylesheet" href="./styles.css?v=desktop-hover-3" />
 </head>
 <body>
   <svg class="icon-defs" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
@@ -20,7 +20,10 @@
   </svg>
   <header class="top">
     <a class="name" href="/">Samuel Carson</a>
-    <button class="icon-button browse-trigger" type="button" aria-label="Browse all photographs" aria-haspopup="dialog" aria-controls="browse"><svg class="icon" aria-hidden="true"><use href="#icon-grid"/></svg></button>
+    <div class="top-actions">
+      <button class="icon-button shuffle-trigger desktop-shuffle" type="button" aria-label="Shuffle to a random photograph" aria-controls="grid" title="Shuffle photographs"><svg class="icon accent" aria-hidden="true"><use href="#icon-shuffle"/></svg></button>
+      <button class="icon-button browse-trigger" type="button" aria-label="Browse all photographs" aria-haspopup="dialog" aria-controls="browse"><svg class="icon" aria-hidden="true"><use href="#icon-grid"/></svg></button>
+    </div>
   </header>
   <main class="frame">
     <div id="grid" class="masonry" role="region" aria-label="Photographs — scroll to explore"></div>
@@ -28,7 +31,7 @@
   </main>
   <nav class="deck-controls" aria-label="Gallery controls">
     <output id="photo-count" class="photo-count" aria-label="Photo 1" aria-live="off"></output>
-    <button id="shuffle" class="text-button" type="button" aria-label="Shuffle photographs"><svg class="icon accent" aria-hidden="true"><use href="#icon-shuffle"/></svg><span>Shuffle</span></button>
+    <button id="shuffle" class="text-button shuffle-trigger" type="button" aria-label="Shuffle photographs"><svg class="icon accent" aria-hidden="true"><use href="#icon-shuffle"/></svg><span>Shuffle</span></button>
     <button class="text-button browse-trigger" type="button" aria-haspopup="dialog" aria-controls="browse"><svg class="icon" aria-hidden="true"><use href="#icon-grid"/></svg><span>Browse</span></button>
   </nav>
   <p id="gallery-status" class="sr-only" role="status" aria-live="polite"></p>
@@ -39,13 +42,17 @@
     </header>
     <div id="contact-sheet" class="contact-sheet"></div>
   </dialog>
+  <button id="hover-preview" class="hover-preview" type="button" tabindex="-1" hidden>
+    <img id="hover-preview-img" alt="" />
+    <span class="hover-preview-label">Click to view full photograph</span>
+  </button>
   <dialog id="lightbox" class="lightbox" aria-label="Full-screen photograph">
     <button class="icon-button lb-close" type="button" aria-label="Close full-screen photograph"><svg class="icon" aria-hidden="true"><use href="#icon-close"/></svg></button>
     <button class="icon-button lb-prev" type="button" aria-label="Previous photograph"><svg class="icon" aria-hidden="true"><use href="#icon-left"/></svg></button>
     <button class="icon-button lb-next" type="button" aria-label="Next photograph"><svg class="icon" aria-hidden="true"><use href="#icon-right"/></svg></button>
     <figure class="lb-figure"><img id="lb-img" alt="" /><figcaption id="lb-cap"></figcaption></figure>
   </dialog>
-  <script src="./photos.js?v=mobile-deck-1"></script>
-  <script src="./app.js?v=mobile-deck-1"></script>
+  <script src="./photos.js?v=desktop-hover-3"></script>
+  <script src="./app.js?v=desktop-hover-3"></script>
 </body>
 </html>
