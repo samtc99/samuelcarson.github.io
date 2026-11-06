@@ -834,7 +834,9 @@ test('desktop shuffle sits beside Browse and jumps past currently visible photos
   f.w.crypto.getRandomValues = array => { array[0] = 0; return array; };
   button.click(); await tick();
   assert.equal(f.state().file, files[3]);
-  assert.equal(f.scrolls.at(-1).element, nodes[3]);
+  const photo = nodes[3].querySelector('img');
+  const expected = 1100 + 300 * Number(photo.height) / Number(photo.width) / 2 - (68 + 900) / 2;
+  assert.equal(f.w.scrollY, expected);
   assert.equal(nodes[3].querySelector('img').loading, 'eager');
   assert.equal(nodes[3].querySelector('img').fetchPriority, 'high');
   button.click(); await tick();
@@ -856,4 +858,31 @@ test('both shuffle controls are disabled for a single photograph', async t => {
   const f = fixture({ data:'const PHOTO_COLLECTION = [{file:"one.jpg",width:2000,height:3000,shoot:"one"}];' });
   t.after(f.close); await tick();
   assert.ok([...f.d.querySelectorAll('.shuffle-trigger')].every(button => button.disabled));
+});
+
+test('desktop shuffle centers the selected image below the header before decoding, from an existing scroll position', async t => {
+  for (const height of [700, 1100]) {
+    const f = fixture({ width:1440, height, coarse:false }); t.after(f.close); await tick();
+    f.w.scrollTo({top:1800});
+    f.d.querySelector('.top').getBoundingClientRect = () => ({bottom:72});
+    [...f.grid.children].forEach(card => { card.getBoundingClientRect = () => ({left:100,right:500,width:400,top:1500,bottom:2100}); });
+    f.w.crypto.getRandomValues = array => { array[0] = 0; return array; };
+    f.d.querySelector('.desktop-shuffle').click();
+    const selected = f.grid.querySelector('[aria-current="true"] img');
+    const imageCenter = 1800 + 1500 + 400 * selected.height / selected.width / 2;
+    assert.equal(imageCenter - f.w.scrollY, (72 + height) / 2);
+    assert.deepEqual(f.errors, []);
+  }
+});
+
+test('desktop shuffle skips page-edge photographs that cannot be centered', async t => {
+  const f = fixture({width:1440,height:900,coarse:false}); t.after(f.close); await tick();
+  Object.defineProperty(f.d.documentElement, 'scrollHeight', {value:5000});
+  f.d.querySelector('.top').getBoundingClientRect = () => ({bottom:68});
+  const nodes = [...f.grid.children];
+  nodes.forEach((card,i) => { card.getBoundingClientRect = () => ({left:100,right:400,width:300,top:i < 3 ? 4900 : 1500,bottom:i < 3 ? 5350 : 1950}); });
+  f.w.crypto.getRandomValues = array => {array[0]=0;return array;};
+  f.d.querySelector('.desktop-shuffle').click();
+  assert.equal(f.state().file,f.files()[3]);
+  assert.ok(f.w.scrollY > 0 && f.w.scrollY < 4100);
 });

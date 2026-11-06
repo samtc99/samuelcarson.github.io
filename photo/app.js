@@ -248,7 +248,7 @@ function setActive(index) {
   if (cards[activeIndex]?.getAttribute("aria-current") !== "true") cards[activeIndex]?.setAttribute("aria-current", "true");
   saveState();
 }
-function scrollToPhoto(index, { focus = false, smooth = false } = {}) {
+function scrollToPhoto(index, { focus = false, smooth = false, centerDesktop = false } = {}) {
   if (!photos.length) return;
   setActive(index);
   const card = cards[activeIndex];
@@ -256,6 +256,16 @@ function scrollToPhoto(index, { focus = false, smooth = false } = {}) {
   if (mobileView.matches) {
     requestedIndex = activeIndex;
     scrollDeckTo(card.offsetTop, behavior);
+  }
+  else if (centerDesktop) {
+    // Center the photograph in the usable viewport below the sticky header.
+    // Use its reserved aspect ratio even before a lazy image has decoded.
+    const rect = card.getBoundingClientRect();
+    const photo = photos[activeIndex];
+    const height = rect.width * photo.height / photo.width;
+    const headerBottom = document.querySelector(".top").getBoundingClientRect().bottom;
+    const viewportCenter = (headerBottom + window.innerHeight) / 2;
+    window.scrollTo({ top: Math.max(0, window.scrollY + rect.top + height / 2 - viewportCenter), behavior });
   }
   else card.scrollIntoView({ block: "center", behavior });
   if (focus) card.focus({ preventScroll: true });
@@ -634,8 +644,13 @@ function shuffleToPhoto() {
   const excluded = new Set([activeIndex]);
   if (!mobileView.matches) {
     const top = document.querySelector(".top").getBoundingClientRect().bottom;
+    const maxScroll = document.documentElement.scrollHeight - window.innerHeight;
+    const viewportCenter = (top + window.innerHeight) / 2;
     cards.forEach((card, i) => {
       const rect = card.getBoundingClientRect();
+      const centeredY = window.scrollY + rect.top + rect.width * photos[i].height / photos[i].width / 2 - viewportCenter;
+      // Avoid end-of-page targets that the browser cannot center.
+      if (maxScroll > 0 && (centeredY < 0 || centeredY > maxScroll)) excluded.add(i);
       if (rect.width > 0 && rect.bottom > top && rect.top < window.innerHeight && rect.right > 0 && rect.left < window.innerWidth) excluded.add(i);
     });
   }
@@ -644,7 +659,7 @@ function shuffleToPhoto() {
   image.loading = "eager";
   image.fetchPriority = "high";
   // A random jump needs no reordering or image-node replacement.
-  scrollToPhoto(index);
+  scrollToPhoto(index, { centerDesktop: true });
   updateScrollPosition();
   status.textContent = `Random photograph ${activeIndex + 1} of ${photos.length}. ${photos[activeIndex].title}.`;
   const label = document.querySelector("#shuffle span");

@@ -49,7 +49,8 @@ other cards or reshuffle the collection. The viewer follows the same photo order
 ## Desktop previews
 
 A single Shuffle icon beside Browse jumps to a random photograph outside the
-current viewport when possible. It preserves the balanced order and existing
+current viewport when possible, centered below the sticky header. It avoids page-edge
+targets that cannot be centered. It preserves the balanced order and existing
 image nodes; the phone Shuffle control stays in the bottom navigation.
 
 Masonry cards lift on mouse hover or keyboard focus while preserving their layout
