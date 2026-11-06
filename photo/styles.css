@@ -55,25 +55,28 @@ body{
   width:100%;
   padding: 0 var(--gutter) var(--gutter);
 }
-/* Masonry that “fills” with low negative space */
+/* Cards keep their positions while images load, including off-screen images. */
 .masonry{
-  column-count:3;
-  column-gap:var(--gap);
+  --columns:3;
+  position:relative;
   width:100%;
 }
 
-/* Responsive columns */
-@media (max-width: 1100px){ .masonry{ column-count: 2; } }
-@media (max-width: 700px){ .masonry{ column-count: 1; } }
+@media (max-width: 1100px){ .masonry{ --columns:2; } }
+@media (max-width: 700px){
+  :root{ --gutter:18px; }
+  .masonry{ --columns:1; }
+}
 
 .card{
-  break-inside: avoid;
-  margin: 0 0 var(--gap);
+  margin:0;
   border-radius: var(--radius);
   overflow:hidden;
   background: rgba(255,255,255,.02);
   cursor: zoom-in;
-  position:relative;
+  position:absolute;
+  top:0;
+  left:0;
 }
 
 /* Images define height, no letterboxing */
@@ -82,10 +85,13 @@ body{
   height:auto;
   display:block;
   transform: scale(1.001);
-  transition: transform .35s ease, opacity .25s ease;
+  opacity:0;
+  transition: transform .35s ease;
 }
 
-.card:hover img{
+.card.is-loaded img, .card.is-error img{ opacity:1; }
+
+.card.is-loaded:hover img{
   transform: scale(1.02);
   opacity: .92;
 }
