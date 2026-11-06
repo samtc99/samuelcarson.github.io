@@ -30,7 +30,7 @@ button:focus-visible,a:focus-visible { outline:2px solid var(--accent); outline-
 .masonry { --columns:3; position:relative; width:100%; }
 .card { display:block; position:absolute; top:0; left:0; margin:0; padding:0; overflow:hidden; border-radius:var(--radius); background:rgba(255,255,255,.02); cursor:zoom-in; text-align:left; }
 .photo-picture { display:block; width:100%; }
-.card img { display:block; width:100%; height:auto; opacity:0; transition:transform .3s ease; }
+.card img { display:block; width:100%; height:auto; opacity:0; transition:opacity .18s ease-out,transform .3s ease; }
 .card.is-loaded img,.card.is-error img { opacity:1; }
 .photo-error { display:none; position:absolute; inset:0; place-items:center; padding:24px; background:var(--bg); color:var(--muted); text-align:center; }
 .card.is-error .photo-error { display:grid; }
@@ -57,6 +57,7 @@ dialog::backdrop { background:rgba(0,0,0,.82); }
 #lb-img { display:block; width:100%; height:100%; min-height:0; object-fit:contain; border-radius:var(--radius); }
 #lb-img.is-pending { visibility:hidden; }
 #lb-cap { min-height:20px; text-align:center; color:var(--muted); font-size:12px; line-height:1.5; }
+.lightbox[aria-busy="true"] #lb-cap::after { content:" · Loading…"; }
 .lightbox .icon-button { position:absolute; background:rgba(11,11,12,.85); border:1px solid rgba(255,255,255,.12); }
 .lb-close { top:max(16px,env(safe-area-inset-top)); right:max(18px,env(safe-area-inset-right)); }
 .lb-prev,.lb-next { top:50%; transform:translateY(-50%); }
@@ -76,9 +77,9 @@ dialog::backdrop { background:rgba(0,0,0,.82); }
   body { height:100vh; height:100svh; min-height:0; display:flex; flex-direction:column; overflow:hidden; }
   .top { position:relative; flex-shrink:0; padding:max(12px,env(safe-area-inset-top)) max(18px,env(safe-area-inset-right)) 12px max(18px,env(safe-area-inset-left)); }
   .frame { display:flex; flex:1; min-height:0; padding:0; }
-  .masonry { --columns:1; --deck-peek:32px; --stage-height:600px; flex:1; min-height:0; overflow-y:auto; overflow-x:hidden; display:flex; flex-direction:column; gap:16px; padding:0 max(18px,env(safe-area-inset-right)) var(--deck-peek) max(18px,env(safe-area-inset-left)); scroll-snap-type:y mandatory; scrollbar-width:none; overscroll-behavior-y:contain; -webkit-overflow-scrolling:touch; }
+  .masonry { --columns:1; flex:1; min-height:0; overflow-y:auto; overflow-x:hidden; display:flex; flex-direction:column; gap:16px; padding:0 max(18px,env(safe-area-inset-right)) 16px max(18px,env(safe-area-inset-left)); scroll-snap-type:none; overflow-anchor:none; scrollbar-width:none; overscroll-behavior-y:contain; -webkit-overflow-scrolling:touch; }
   .masonry::-webkit-scrollbar { display:none; }
-  .card { position:relative; top:auto; left:auto; flex:0 0 calc(var(--stage-height) - var(--deck-peek)); width:100%; min-height:100px; display:flex; background:transparent; border-radius:0; overflow:visible; scroll-snap-align:start; scroll-margin:0; }
+  .card { position:relative; top:auto; left:auto; flex:0 0 auto; width:100%; height:var(--card-height); min-height:0; display:flex; background:transparent; border-radius:0; overflow:visible; scroll-margin:0; }
   .photo-picture { display:flex; align-items:flex-start; justify-content:center; width:100%; height:100%; min-height:0; }
   .card img { width:auto; height:auto; max-width:100%; max-height:100%; min-height:0; object-fit:contain; border-radius:var(--radius); }
   .card.is-loaded:hover img { transform:none; }
@@ -264,6 +265,7 @@ function readSavedState() {
 }
 const savedState = readSavedState();
 let shuffleSeed = Number.isInteger(savedState.seed) ? savedState.seed >>> 0 : 0;
+let shuffleRotation = Number.isInteger(savedState.rotation) ? savedState.rotation : 0;
 
 function photoHash(photo) {
   let hash = 2166136261 ^ shuffleSeed;
@@ -302,7 +304,7 @@ function mixPhotos(photos) {
   return shoots.length > 1 ? interleave([shoots[0], interleave(shoots.slice(1))]) : interleave(shoots);
 }
 function buildPhotos() {
-  return mixPhotos(PHOTO_COLLECTION).map(photo => {
+  const mixed = mixPhotos(PHOTO_COLLECTION).map(photo => {
     const title = photo.title || photo.file.replace(/\.[^.]+$/, "").replace(/-/g, " ");
     const rendition = photo.file.replace(/\.[^.]+$/, ".webp");
     return { ...photo, title, alt: photo.alt || title,
@@ -310,6 +312,8 @@ function buildPhotos() {
       preview: useOriginals ? `${assetBase}/images/${photo.file}` : `${assetBase}/previews/${rendition}`,
       thumb: useOriginals ? `${assetBase}/images/${photo.file}` : `${assetBase}/thumbs/${rendition}` };
   });
+  const shift = mixed.length ? ((shuffleRotation % mixed.length) + mixed.length) % mixed.length : 0;
+  return [...mixed.slice(shift), ...mixed.slice(0, shift)];
 }
 function escapeHTML(value) {
   return String(value).replace(/[&<>"']/g, char => ({ "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;", "'":"&#39;" })[char]);
@@ -325,18 +329,24 @@ const lbImg = document.getElementById("lb-img");
 const lbCap = document.getElementById("lb-cap");
 let photos = buildPhotos();
 let cards = [];
+const cardNodes = new Map();
+const decodeVersions = new WeakMap();
 let activeIndex = Math.max(0, photos.findIndex(photo => photo.file === savedState.file));
 let layoutFrame = 0;
 let scrollFrame = 0;
 let wasMobile;
+let lastWidth = 0;
 let lastStageHeight = 0;
 let lightboxRequest = 0;
 let browseSelection = null;
 let browseTrigger = null;
 let sheetDirty = true;
+let requestedIndex = null;
+let viewerReturn = null;
+let shuffleLabelTimer;
 
 function saveState() {
-  try { sessionStorage.setItem(STATE_KEY, JSON.stringify({ seed: shuffleSeed, file: photos[activeIndex]?.file })); }
+  try { sessionStorage.setItem(STATE_KEY, JSON.stringify({ seed: shuffleSeed, rotation: shuffleRotation, file: photos[activeIndex]?.file })); }
   catch { /* Gallery navigation also works when browser storage is unavailable. */ }
 }
 function setActive(index) {
@@ -352,20 +362,57 @@ function scrollToPhoto(index, { focus = false, smooth = false } = {}) {
   setActive(index);
   const card = cards[activeIndex];
   const behavior = smooth && !reducedMotion.matches ? "smooth" : "instant";
-  if (mobileView.matches) grid.scrollTo({ top: card.offsetTop, behavior });
+  if (mobileView.matches) {
+    requestedIndex = activeIndex;
+    scrollDeckTo(card.offsetTop, behavior);
+  }
   else card.scrollIntoView({ block: "center", behavior });
   if (focus) card.focus({ preventScroll: true });
 }
-function layoutGallery() {
+function scrollDeckTo(top, behavior = "instant") {
+  const end = Math.max(0, grid.scrollHeight - grid.clientHeight);
+  const target = Math.max(0, Math.min(top, end));
+  if (Math.abs(target - grid.scrollTop) > .5) grid.scrollTo({ top: target, behavior });
+}
+function capturePosition(index = activeIndex) {
+  return { file: photos[index]?.file, offset: grid.scrollTop - (cards[index]?.offsetTop || 0),
+    height: parseFloat(cards[index]?.style.getPropertyValue("--card-height")) || 1,
+    windowY: window.scrollY };
+}
+function restorePosition(position, { focus = false, scale = false, retainSelection = true } = {}) {
+  const index = photos.findIndex(photo => photo.file === position?.file);
+  if (index < 0) return;
+  setActive(index);
   if (mobileView.matches) {
+    const height = parseFloat(cards[index].style.getPropertyValue("--card-height")) || position.height;
+    const offset = position.offset * (scale ? height / position.height : 1);
+    requestedIndex = retainSelection ? index : null;
+    scrollDeckTo(cards[index].offsetTop + offset);
+  } else window.scrollTo({ top: position.windowY, behavior: "instant" });
+  if (focus) cards[index].focus({ preventScroll: true });
+}
+function layoutGallery({ force = false, preservePosition = true } = {}) {
+  if (mobileView.matches) {
+    const style = getComputedStyle(grid);
+    const width = grid.clientWidth - (parseFloat(style.paddingLeft) || 0) - (parseFloat(style.paddingRight) || 0);
+    const height = grid.clientHeight;
+    if (!force && wasMobile === true && width === lastWidth && height === lastStageHeight) return;
+    const position = wasMobile === true && preservePosition ? capturePosition() : null;
     grid.style.height = "";
     grid.dataset.mode = "deck";
-    cards.forEach(card => { card.style.width = ""; card.style.transform = ""; });
-    const height = grid.clientHeight;
-    grid.style.setProperty("--stage-height", `${Math.max(140, height)}px`);
-    if (wasMobile !== true || height !== lastStageHeight) {
-      grid.scrollTo({ top: cards[activeIndex]?.offsetTop || 0, behavior: "instant" });
+    cards.forEach((card, i) => {
+      card.style.width = "";
+      card.style.transform = "";
+      // Reserve the actual image height, capped only for tall portraits.
+      const cardHeight = Math.min(Math.max(1, width) * photos[i].height / photos[i].width, Math.max(100, height - 32));
+      card.style.setProperty("--card-height", `${cardHeight}px`);
+    });
+    if (position) restorePosition(position, { scale: width !== lastWidth, retainSelection: requestedIndex !== null });
+    else if (preservePosition) {
+      requestedIndex = activeIndex;
+      scrollDeckTo(cards[activeIndex]?.offsetTop || 0);
     }
+    lastWidth = width;
     lastStageHeight = height;
   } else {
     grid.dataset.mode = "masonry";
@@ -398,26 +445,35 @@ function layoutGallery() {
 }
 function scheduleLayout() {
   cancelAnimationFrame(layoutFrame);
-  layoutFrame = requestAnimationFrame(layoutGallery);
+  layoutFrame = requestAnimationFrame(() => layoutGallery());
 }
 function revealPhoto(img) {
+  const version = (decodeVersions.get(img) || 0) + 1;
+  decodeVersions.set(img, version);
+  const source = img.currentSrc || img.src;
   const decoded = typeof img.decode === "function" ? img.decode() : Promise.resolve();
-  decoded.catch(() => {}).then(() => {
-    if (img.isConnected) img.closest(".card").classList.add(img.naturalWidth ? "is-loaded" : "is-error");
-  });
+  decoded.then(() => {
+    if (!img.isConnected || decodeVersions.get(img) !== version || (img.currentSrc || img.src) !== source || !img.naturalWidth) return;
+    img.closest(".card").classList.remove("is-error");
+    img.closest(".card").classList.add("is-loaded");
+  }).catch(() => { /* Source switches can abort decode; only an error event is definitive. */ });
 }
-function imageFailed(img, index) {
+function imageFailed(img, photo) {
   if (!img.dataset.originalFallback) {
     img.dataset.originalFallback = "true";
     img.closest("picture").querySelector("source")?.remove();
-    img.src = photos[index].src;
+    img.src = photo.src;
   } else img.closest(".card").classList.add("is-error");
 }
 function render() {
   sheetDirty = true;
   document.getElementById("shuffle").disabled = photos.length < 2;
   document.querySelectorAll(".browse-trigger").forEach(button => { button.disabled = !photos.length; });
-  grid.innerHTML = photos.map((photo, i) => `
+  const nextCards = photos.map((photo, i) => {
+    let card = cardNodes.get(photo.file);
+    if (!card) {
+      const template = document.createElement("template");
+      template.innerHTML = `
     <button class="card" type="button" data-index="${i}" aria-label="View photo ${i + 1} of ${photos.length}: ${escapeHTML(photo.title)}">
       <picture class="photo-picture">
         <source media="${MOBILE_QUERY}" srcset="${escapeHTML(photo.preview)}" ${useOriginals ? "" : 'type="image/webp"'} />
@@ -425,15 +481,31 @@ function render() {
           loading="${i < (mobileView.matches ? 2 : 6) ? "eager" : "lazy"}" decoding="async" fetchpriority="${i === activeIndex ? "high" : "auto"}" />
       </picture>
       <span class="photo-error">This photograph couldn’t load. Tap to try the original.</span>
-    </button>`).join("");
-  cards = Array.from(grid.children);
-  layoutGallery();
-  grid.querySelectorAll("img").forEach((img, i) => {
-    img.addEventListener("load", () => revealPhoto(img));
-    img.addEventListener("error", () => imageFailed(img, i));
-    if (img.complete) {
+    </button>`;
+      card = template.content.firstElementChild;
+      const img = card.querySelector("img");
+      img.addEventListener("load", () => revealPhoto(img));
+      img.addEventListener("error", () => imageFailed(img, photo));
+      cardNodes.set(photo.file, card);
+    }
+    card.dataset.index = i;
+    card.setAttribute("aria-label", `View photo ${i + 1} of ${photos.length}: ${photo.title}`);
+    return card;
+  });
+  // Move connected cards rather than rebuilding images and clearing decoded frames.
+  nextCards.forEach((card, i) => {
+    const before = grid.children[i] || null;
+    if (before === card) return;
+    if (typeof grid.moveBefore === "function" && card.isConnected) grid.moveBefore(card, before);
+    else grid.insertBefore(card, before);
+  });
+  cards = nextCards;
+  layoutGallery({ force: true, preservePosition: false });
+  cards.forEach(card => {
+    const img = card.querySelector("img");
+    if (img.complete && !card.classList.contains("is-loaded")) {
       if (img.naturalWidth) revealPhoto(img);
-      else if (img.currentSrc) imageFailed(img, i);
+      else if (img.currentSrc) imageFailed(img, photos[Number(card.dataset.index)]);
     }
   });
   setActive(activeIndex);
@@ -447,6 +519,9 @@ function updateScrollPosition() {
     const delta = Math.abs(card.offsetTop - grid.scrollTop);
     if (delta < distance) { closest = i; distance = delta; }
   });
+  const end = Math.max(0, grid.scrollHeight - grid.clientHeight);
+  if (requestedIndex !== null) closest = requestedIndex;
+  else if (end > 0 && grid.scrollTop >= end - 2) closest = cards.length - 1;
   if (closest !== activeIndex) setActive(closest);
   // Warm only the immediate neighbors rather than downloading the full deck.
   for (const i of [closest - 1, closest, closest + 1]) {
@@ -456,6 +531,9 @@ function updateScrollPosition() {
 grid.addEventListener("scroll", () => {
   if (!scrollFrame) scrollFrame = requestAnimationFrame(updateScrollPosition);
 }, { passive: true });
+for (const type of ["wheel", "touchstart", "pointerdown", "keydown"]) {
+  grid.addEventListener(type, () => { requestedIndex = null; }, { passive: true });
+}
 
 function syncModalState() {
   document.documentElement.classList.toggle("modal-open", browse.open || lightbox.open);
@@ -506,11 +584,17 @@ browse.addEventListener("close", () => {
 
 function openLightbox(index) {
   if (!photos.length) return;
+  if (!lightbox.open) viewerReturn = capturePosition(index);
   setActive(index);
   const photo = photos[activeIndex];
   const request = ++lightboxRequest;
-  lbImg.classList.add("is-pending");
-  lbCap.textContent = `${photo.title}${photo.meta ? " — " + photo.meta : ""} · ${activeIndex + 1} / ${photos.length}`;
+  const caption = `${photo.title}${photo.meta ? " — " + photo.meta : ""} · ${activeIndex + 1} / ${photos.length}`;
+  // Keep the previous decoded frame until the next one is ready to paint.
+  if (!lbImg.hasAttribute("src")) {
+    lbImg.classList.add("is-pending");
+    lbCap.textContent = "";
+  }
+  lightbox.setAttribute("aria-busy", "true");
   if (!lightbox.open) lightbox.showModal();
   syncModalState();
   const image = new Image();
@@ -519,9 +603,14 @@ function openLightbox(index) {
     if (request !== lightboxRequest || !lightbox.open) return;
     lbImg.src = photo.src;
     lbImg.alt = photo.alt;
+    lbCap.textContent = caption;
     lbImg.classList.remove("is-pending");
+    lightbox.setAttribute("aria-busy", "false");
   }).catch(() => {
-    if (request === lightboxRequest && lightbox.open) lbCap.textContent = "This photograph couldn’t load. Try the next photo.";
+    if (request === lightboxRequest && lightbox.open) {
+      lbCap.textContent = "This photograph couldn’t load. Try the next photo.";
+      lightbox.setAttribute("aria-busy", "false");
+    }
   });
 }
 function stepLightbox(direction) {
@@ -541,8 +630,11 @@ lightbox.addEventListener("close", () => {
   if (lightbox.open) return;
   lightboxRequest++;
   lbImg.removeAttribute("src");
+  lightbox.setAttribute("aria-busy", "false");
   syncModalState();
-  scrollToPhoto(activeIndex, { focus: true });
+  if (viewerReturn?.file === photos[activeIndex]?.file) restorePosition(viewerReturn, { focus: true });
+  else scrollToPhoto(activeIndex, { focus: true });
+  viewerReturn = null;
 });
 grid.addEventListener("click", event => {
   const card = event.target.closest(".card");
@@ -557,13 +649,24 @@ grid.addEventListener("keydown", event => {
   scrollToPhoto(index, { focus: true, smooth: true });
 });
 document.getElementById("shuffle").addEventListener("click", () => {
+  const position = capturePosition();
+  const currentIndex = activeIndex;
   const seed = crypto.getRandomValues(new Uint32Array(1))[0];
   shuffleSeed = seed === shuffleSeed ? (seed + 1) >>> 0 : seed;
-  photos = buildPhotos();
-  activeIndex = 0;
+  shuffleRotation = 0;
+  const mixed = buildPhotos();
+  // Rotate the balanced mix so the current photo stays at its current index.
+  const shift = (mixed.findIndex(photo => photo.file === position.file) - currentIndex + mixed.length) % mixed.length;
+  shuffleRotation = shift;
+  photos = [...mixed.slice(shift), ...mixed.slice(0, shift)];
   render();
-  scrollToPhoto(0);
-  status.textContent = `Photographs reshuffled. Showing photo 1 of ${photos.length}.`;
+  restorePosition(position);
+  updateScrollPosition();
+  status.textContent = "Deck reshuffled. Your current photograph stays in place.";
+  const label = document.querySelector("#shuffle span");
+  label.textContent = "Shuffled";
+  clearTimeout(shuffleLabelTimer);
+  shuffleLabelTimer = setTimeout(() => { label.textContent = "Shuffle"; }, 1400);
 });
 
 new ResizeObserver(scheduleLayout).observe(grid);
