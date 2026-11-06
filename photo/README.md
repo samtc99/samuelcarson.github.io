@@ -108,3 +108,22 @@ behavior on desktop and the mobile scrolling, spacing, orientation, and dialogs.
 
 When changing the gallery scripts or stylesheet, update their `?v=` values in
 `index.html` together so browsers fetch the matching files.
+
+## Mobile viewport experiment
+
+The default deck uses `100dvh` after `vh`/`svh` fallbacks, so its stage can fill
+space released by retracting browser bars. Viewport units size content; they do
+not command Safari's toolbar visibility or color.
+
+`review/native-scroll.html` opts into `data-document-deck`: normal document
+scrolling rather than the locked root/inner scroller. Navigation, current-photo
+tracking and position restoration use the selected scroll container. Card heights
+stay stable across height-only browser-bar transitions; width changes remeasure.
+This experiment is not enabled on the production page. Build it with:
+
+```sh
+python3 photo/tools/build-review.py --photo-base https://samtc.me/photo --renditions --document-scroll
+```
+
+The approved fine dark image edge and raised-card shadow are now included in the
+main review. iOS 27.2 browser chrome still requires device review.

@@ -58,3 +58,15 @@ having tested the latest preview. Safari 27.2 availability is confirmed at:
 https://webkit.org/blog/18515/webkit-features-for-safari-27-2/
 No physical iPhone or iOS simulator was available to reproduce the white chrome.
 The cause remains unconfirmed until these isolation modes are compared on-device.
+
+## Approved finish and viewport comparison
+
+The recommended combined card finish is applied to the main gallery draft.
+`mobile-deck.html` now uses dynamic viewport height for its contained deck.
+`native-scroll.html` uses the same photos/controls with normal page scrolling;
+card heights are stable while browser bars change height. Compare both directly
+in iOS 27.2 Safari. Neither mode can force the browser chrome to hide or recolor.
+
+Reference: https://webkit.org/blog/12445/new-webkit-features-in-safari-15-4/
+explains small, large and dynamic viewport units. Prior inner-scroll toolbar
+behavior is documented at https://bugs.webkit.org/show_bug.cgi?id=231878 .

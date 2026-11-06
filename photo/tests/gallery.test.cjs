@@ -11,13 +11,14 @@ const tick = () => new Promise(resolve => setTimeout(resolve, 45));
 const hoverTick = () => new Promise(resolve => setTimeout(resolve, 165));
 
 // DOM/state tests, not a substitute for reviewing native scrolling on a phone.
-function fixture({ width = 390, height = 844, coarse = true, saved, data = collection, blockedStorage = false, reduced = false, originals = false, assetBase, originalBase, saveData = false, animations = false } = {}) {
+function fixture({ width = 390, height = 844, coarse = true, saved, data = collection, blockedStorage = false, reduced = false, originals = false, assetBase, originalBase, saveData = false, animations = false, documentDeck = false } = {}) {
   const errors = [];
   const console = new VirtualConsole();
   console.on('jsdomError', error => errors.push(error));
   const dom = new JSDOM(html, { url:'https://samtc.me/photo/', runScripts:'outside-only', pretendToBeVisual:true, virtualConsole:console });
   const w = dom.window;
   const d = w.document;
+  if (documentDeck) d.documentElement.setAttribute('data-document-deck','');
   if (originals) d.documentElement.dataset.useOriginals = 'true';
   if (assetBase) d.documentElement.dataset.photoBase = assetBase;
   if (originalBase) d.documentElement.dataset.originalPhotoBase = originalBase;
@@ -75,7 +76,16 @@ function fixture({ width = 390, height = 844, coarse = true, saved, data = colle
   };
   let windowY = 0;
   Object.defineProperty(w, 'scrollY', { get:() => windowY });
-  w.scrollTo = options => { windowY = options.top; };
+  w.scrollTo = options => {
+    windowY = documentDeck ? Math.max(0, Math.min(options.top, d.documentElement.scrollHeight - height)) : options.top;
+    if (documentDeck) w.dispatchEvent(new w.Event('scroll'));
+  };
+  if (documentDeck) {
+    d.querySelector('.top').getBoundingClientRect = () => ({height:68,bottom:68});
+    d.querySelector('.deck-controls').getBoundingClientRect = () => ({height:64});
+    grid.getBoundingClientRect = () => ({top:68-windowY});
+    Object.defineProperty(d.documentElement,'scrollHeight',{get:()=>68+grid.scrollHeight+84});
+  }
   w.HTMLElement.prototype.scrollIntoView = function(options) { scrolls.push({ element:this, ...options }); };
   w.HTMLDialogElement.prototype.showModal = function() {
     if (this.open) throw new Error('Dialog is already open');
@@ -882,4 +892,25 @@ test('desktop shuffle skips page-edge photographs that cannot be centered', asyn
   f.d.querySelector('.desktop-shuffle').click();
   assert.equal(f.state().file,f.files()[3]);
   assert.ok(f.w.scrollY > 0 && f.w.scrollY < 4100);
+});
+
+test('native-page deck keeps shuffle, Browse jumps, counter and viewer return on document scrolling', async t => {
+ const f=fixture({documentDeck:true});t.after(f.close);await tick();
+ f.w.crypto.getRandomValues=a=>{a[0]=2147483648;return a;};
+ f.d.getElementById('shuffle').click();await tick();
+ const selected=f.grid.querySelector('[aria-current="true"]');
+ assert.ok(f.w.scrollY>0);assert.equal(f.w.scrollY,selected.offsetTop);assert.equal(f.grid.scrollTop,0);
+ f.d.querySelector('.browse-trigger').click();f.d.querySelectorAll('.thumbnail')[12].click();await tick();
+ assert.equal(f.state().file,f.files()[12]);assert.equal(f.w.scrollY,f.grid.children[12].offsetTop);
+ f.grid.dispatchEvent(new f.w.Event('touchstart'));f.w.scrollTo({top:f.grid.children[12].offsetTop+40});await tick();
+ const before=f.w.scrollY;f.grid.children[12].click();await tick();f.d.querySelector('.lb-close').click();await tick();
+ assert.equal(f.w.scrollY,before);assert.equal(f.state().file,f.files()[12]);assert.deepEqual(f.errors,[]);
+});
+test('native-page deck holds card sizes and position while browser bar height changes', async t => {
+ const f=fixture({documentDeck:true});t.after(f.close);await tick();
+ const heights=[...f.grid.children].map(c=>c.style.getPropertyValue('--card-height'));
+ f.grid.dispatchEvent(new f.w.Event('touchstart'));f.w.scrollTo({top:f.grid.children[20].offsetTop+55});await tick();const before=f.w.scrollY;
+ await f.viewport(390,940);assert.equal(f.w.scrollY,before);
+ assert.deepEqual([...f.grid.children].map(c=>c.style.getPropertyValue('--card-height')),heights);
+ assert.equal(f.state().file,f.files()[20]);assert.deepEqual(f.errors,[]);
 });
