@@ -64,7 +64,10 @@ taps retain their jump-to-deck behavior. Clicking a photograph in the main feed
 still opens the original viewer.
 
 The page declares a dark color scheme and matching theme color, with an explicit
-root background for Safari's page surroundings. Safari controls toolbar rendering;
+root background for Safari's page surroundings. On mobile, the solid header and
+bottom controls are sticky at their respective viewport edges so Safari can use
+these surfaces for its browser tint. An early inline background avoids sampling
+a white page before the stylesheet arrives. Safari controls toolbar rendering;
 its translucent address and navigation controls cannot be fully restyled by a page.
 
 Hover requests are canceled on exit, scroll, resize, blur, or viewer entry. A late
@@ -73,7 +76,7 @@ preview rather than covering controls. Reduced-motion settings disable the lift
 animation; the image and its solid backing stay fully opaque throughout.
 
 The raised card animates from its source thumbnail's real bounds using one
-uniform scale and translation (300ms eased pull, 180ms return). A cached thumbnail
+uniform scale and translation (480ms eased pull, 320ms return). A cached thumbnail
 can start the pull before the larger image is decoded; that image swaps in
 without replaying the animation. Reentering a returning card resumes from its
 current visual position. Lifecycle changes cancel motion immediately. Browsers

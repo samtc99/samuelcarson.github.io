@@ -27,3 +27,12 @@ The page also requests a dark browser color scheme with its existing matching
 theme color and an explicit root background. Review on samtc.me in iPhone Safari
 after approval: the preview host can have different browser tint treatment.
 Safari controls its translucent browser bars; the page cannot force their color.
+
+Safari tint refinement: mobile header and bottom controls now use sticky edge
+positioning with opaque site backgrounds; the root background is also supplied
+before the external stylesheet loads. Based on WebKit's edge tint behavior:
+https://bugs.webkit.org/show_bug.cgi?id=301756
+
+The preview pull now lasts 480ms with a gentler initial acceleration and a 320ms
+return, preserving the existing current-position reversal and reduced motion.
+Native iPhone Safari tint and rendered animation still need visual review.

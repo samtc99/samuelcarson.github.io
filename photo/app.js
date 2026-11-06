@@ -141,7 +141,7 @@ function hideHoverPreview({ animate = false } = {}) {
     const animation = hoverPreview.animate([
       { transform:cardTransform(current, box) },
       { transform:cardTransform(origin, box) }
-    ], { duration:180, easing:"cubic-bezier(.4,0,.7,.2)", fill:"forwards" });
+    ], { duration:320, easing:"cubic-bezier(.3,0,.2,1)", fill:"forwards" });
     hoverAnimation = animation;
     Promise.resolve(animation.finished).then(() => {
       if (hoverAnimation !== animation || !hoverClosing) return;
@@ -191,7 +191,7 @@ function presentHoverPreview(origin, photo, index, source) {
     const animation = hoverPreview.animate([
       { transform:cardTransform(start, hoverBox()) },
       { transform:"translate(0px, 0px) scale(1)" }
-    ], { duration:300, easing:"cubic-bezier(.16,1,.3,1)", fill:"none" });
+    ], { duration:480, easing:"cubic-bezier(.22,.65,.25,1)", fill:"none" });
     hoverAnimation = animation;
     Promise.resolve(animation.finished).then(() => {
       if (hoverAnimation === animation) hoverAnimation = null;
