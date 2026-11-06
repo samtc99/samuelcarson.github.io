@@ -642,7 +642,7 @@ test('scrolling, resizing and closing the overview dismiss raised previews', asy
   assert.equal(preview.hidden, false);
   f.w.dispatchEvent(new f.w.Event('resize'));
   assert.equal(preview.hidden, true);
-  pointer(f, thumbs[4], 'pointerover'); await hoverTick();
+  pointer(f, thumbs[4], 'pointermove'); await hoverTick();
   assert.equal(preview.hidden, false);
   f.d.getElementById('browse-close').click(); await tick();
   assert.equal(preview.hidden, true);

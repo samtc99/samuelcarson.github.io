@@ -767,6 +767,13 @@ sheet.addEventListener("pointerout", event => {
   if (!button || button.contains(event.relatedTarget) || hoverPreview.contains(event.relatedTarget)) return;
   deferHoverClose();
 });
+sheet.addEventListener("pointermove", event => {
+  if (event.pointerType === "touch" || !hoverPreview.hidden) return;
+  const button = event.target.closest(".thumbnail");
+  // Scrolling can move a card under a stationary pointer while hover is blocked.
+  // A subsequent mouse movement should work without leaving and re-entering it.
+  if (button && hoverCandidate !== button) scheduleHoverPreview(button);
+});
 sheet.addEventListener("focusin", event => {
   const button = event.target.closest(".thumbnail");
   if (button && keyboardNavigation) scheduleHoverPreview(button, 0);
