@@ -76,3 +76,12 @@ behavior is documented at https://bugs.webkit.org/show_bug.cgi?id=231878 .
 The user tested native page scrolling on iOS 27.2 and confirmed the browser bars
 now retract. This is the default in both the gallery entry and main review page.
 The live website remains unchanged until the review branch is approved to publish.
+
+## Thumbnail frame refinement
+
+The iPhone screenshot showed overlapping/squeezed thumbnail rows, with the border
+overlays crossing adjacent photos. Thumbnail rows now size to their content and
+align at the start; thumbnail height comes from its aspect ratio, and the image
+is contained absolutely inside that frame. Use a real card border instead of a
+pseudo-element overlay, and isolate each thumbnail's stacking. Verify on iPhone
+that rows retain full card height and each edge stays at its card perimeter.
