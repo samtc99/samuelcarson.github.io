@@ -3,6 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="color-scheme" content="dark" />
   <meta name="theme-color" content="#0b0b0c" />
   <title>Preview — Samuel Carson Photography</title>
   <meta name="robots" content="noindex,nofollow" />
@@ -12,7 +13,7 @@
   <style>
 :root { color-scheme:dark; --bg:#0b0b0c; --fg:#f5f5f5; --muted:rgba(245,245,245,.62); --accent:#10b981; --gutter:96px; --gap:10px; --radius:16px; }
 * { box-sizing:border-box; }
-html { scrollbar-gutter:stable; }
+html { scrollbar-gutter:stable; background:var(--bg); color-scheme:dark; }
 html,body { min-height:100%; }
 body { margin:0; background:var(--bg); color:var(--fg); font:400 14px Inter,system-ui,sans-serif; }
 button,a { -webkit-tap-highlight-color:transparent; touch-action:manipulation; }
@@ -145,7 +146,7 @@ dialog::backdrop { background:rgba(0,0,0,.82); }
   </dialog>
   <button id="hover-preview" class="hover-preview" type="button" tabindex="-1" hidden>
     <img id="hover-preview-img" alt="" />
-    <span class="hover-preview-label">Click to view full photograph</span>
+    <span class="hover-preview-label">Click to view in feed</span>
   </button>
   <dialog id="lightbox" class="lightbox" aria-label="Full-screen photograph">
     <button class="icon-button lb-close" type="button" aria-label="Close full-screen photograph"><svg class="icon" aria-hidden="true"><use href="#icon-close"/></svg></button>
@@ -455,7 +456,7 @@ function presentHoverPreview(origin, photo, index, source) {
   hoverOrigin = origin;
   hoverImg.src = source;
   hoverPreview.dataset.index = String(index);
-  hoverPreview.setAttribute("aria-label", `View full photograph: ${photo.title}`);
+  hoverPreview.setAttribute("aria-label", `Jump to photograph in feed: ${photo.title}`);
   hoverPreview.hidden = false;
   if (!reducedMotion.matches && typeof hoverPreview.animate === "function") {
     const animation = hoverPreview.animate([
@@ -736,10 +737,6 @@ document.getElementById("browse-close").addEventListener("click", () => browse.c
 sheet.addEventListener("click", event => {
   const button = event.target.closest(".thumbnail");
   if (!button) return;
-  if (desktopPreviewEnabled()) {
-    openLightbox(Number(button.dataset.index));
-    return;
-  }
   browseSelection = Number(button.dataset.index);
   browse.close();
 });
@@ -758,7 +755,7 @@ browse.addEventListener("close", () => {
   hideHoverPreview();
   syncModalState();
   if (browseSelection !== null) {
-    scrollToPhoto(browseSelection, { focus: true });
+    scrollToPhoto(browseSelection, { focus: true, centerDesktop: true });
     status.textContent = `Photo ${activeIndex + 1} of ${photos.length}. ${photos[activeIndex].title}.`;
   } else browseTrigger?.focus({ preventScroll: true });
 });
@@ -881,7 +878,9 @@ hoverPreview.addEventListener("pointerleave", event => {
   deferHoverClose();
 });
 hoverPreview.addEventListener("click", () => {
-  if (!hoverPreview.hidden) openLightbox(Number(hoverPreview.dataset.index));
+  if (hoverPreview.hidden) return;
+  browseSelection = Number(hoverPreview.dataset.index);
+  browse.close();
 });
 sheet.addEventListener("scroll", () => {
   hideHoverPreview();

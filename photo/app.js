@@ -185,7 +185,7 @@ function presentHoverPreview(origin, photo, index, source) {
   hoverOrigin = origin;
   hoverImg.src = source;
   hoverPreview.dataset.index = String(index);
-  hoverPreview.setAttribute("aria-label", `View full photograph: ${photo.title}`);
+  hoverPreview.setAttribute("aria-label", `Jump to photograph in feed: ${photo.title}`);
   hoverPreview.hidden = false;
   if (!reducedMotion.matches && typeof hoverPreview.animate === "function") {
     const animation = hoverPreview.animate([
@@ -466,10 +466,6 @@ document.getElementById("browse-close").addEventListener("click", () => browse.c
 sheet.addEventListener("click", event => {
   const button = event.target.closest(".thumbnail");
   if (!button) return;
-  if (desktopPreviewEnabled()) {
-    openLightbox(Number(button.dataset.index));
-    return;
-  }
   browseSelection = Number(button.dataset.index);
   browse.close();
 });
@@ -488,7 +484,7 @@ browse.addEventListener("close", () => {
   hideHoverPreview();
   syncModalState();
   if (browseSelection !== null) {
-    scrollToPhoto(browseSelection, { focus: true });
+    scrollToPhoto(browseSelection, { focus: true, centerDesktop: true });
     status.textContent = `Photo ${activeIndex + 1} of ${photos.length}. ${photos[activeIndex].title}.`;
   } else browseTrigger?.focus({ preventScroll: true });
 });
@@ -611,7 +607,9 @@ hoverPreview.addEventListener("pointerleave", event => {
   deferHoverClose();
 });
 hoverPreview.addEventListener("click", () => {
-  if (!hoverPreview.hidden) openLightbox(Number(hoverPreview.dataset.index));
+  if (hoverPreview.hidden) return;
+  browseSelection = Number(hoverPreview.dataset.index);
+  browse.close();
 });
 sheet.addEventListener("scroll", () => {
   hideHoverPreview();

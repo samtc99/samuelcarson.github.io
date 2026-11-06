@@ -58,10 +58,14 @@ coordinates and full opacity. In Browse, a brief hover over a thumbnail opens a
 larger uncropped preview. That clickable preview sits inside the native dialog,
 outside the contact sheet's clipping area, and stays below the header controls.
 
-Clicking either the desktop thumbnail or its raised preview opens the full-size
-viewer. Closing returns to the selected thumbnail and preserves overview scroll
-position. Navigating in the viewer updates that selected thumbnail. Touch/mobile
-thumbnail taps retain the existing jump-to-deck behavior.
+Clicking either a desktop thumbnail or its raised preview closes Browse and
+centers and focuses the same photograph in the main feed. Touch/mobile thumbnail
+taps retain their jump-to-deck behavior. Clicking a photograph in the main feed
+still opens the original viewer.
+
+The page declares a dark color scheme and matching theme color, with an explicit
+root background for Safari's page surroundings. Safari controls toolbar rendering;
+its translucent address and navigation controls cannot be fully restyled by a page.
 
 Hover requests are canceled on exit, scroll, resize, blur, or viewer entry. A late
 image decode cannot reopen an old card. Very short windows omit the raised

@@ -570,7 +570,7 @@ test('desktop hover creates an opaque uncropped preview without moving gallery c
   assert.equal(f.w.getComputedStyle(f.d.getElementById('hover-preview-img')).opacity, '1');
 });
 
-test('moving onto the raised preview keeps it open and clicking it opens its own full photograph', async t => {
+test('moving onto the raised preview keeps it open and clicking it returns to its photograph in the feed', async t => {
   const f = fixture({ width:1440, height:900, coarse:false }); t.after(f.close); await tick();
   const thumbs = openDesktopOverview(f);
   pointer(f, thumbs[8], 'pointerover'); await hoverTick();
@@ -580,33 +580,28 @@ test('moving onto the raised preview keeps it open and clicking it opens its own
   assert.equal(preview.hidden, false);
   preview.click(); await tick();
   assert.equal(preview.hidden, true);
-  assert.equal(f.d.getElementById('browse').open, true);
-  assert.equal(f.d.getElementById('lightbox').open, true);
-  assert.ok(f.d.getElementById('lb-img').src.endsWith(f.files()[8]));
+  assert.equal(f.d.getElementById('browse').open, false);
+  assert.equal(f.d.getElementById('lightbox').open, false);
+  assert.equal(f.state().file, f.files()[8]);
 });
 
-test('desktop thumbnail clicks open full-size and closing preserves the overview position and focus', async t => {
-  const f = fixture({ width:1440, height:900, coarse:false }); t.after(f.close); await tick();
-  const thumbs = openDesktopOverview(f), sheet = f.d.getElementById('contact-sheet');
-  sheet.scrollTop = 777;
-  const mainScroll = f.grid.scrollTop;
+test('desktop thumbnail selection closes Browse and centers and focuses the same photo in the feed', async t => {
+  const f = fixture({width:1440,height:900,coarse:false}); t.after(f.close); await tick();
+  const thumbs = openDesktopOverview(f);
+  const card = f.grid.children[15];
+  card.getBoundingClientRect = () => ({top:1500,width:400});
+  f.d.querySelector('.top').getBoundingClientRect = () => ({bottom:68});
   thumbs[15].click(); await tick();
-  assert.equal(f.d.getElementById('lightbox').open, true);
-  assert.equal(f.d.getElementById('browse').open, true);
-  f.d.querySelector('.lb-close').click(); await tick();
-  assert.equal(f.d.getElementById('browse').open, true);
-  assert.equal(sheet.scrollTop, 777);
-  assert.equal(f.d.activeElement, thumbs[15]);
-  assert.equal(thumbs[15].getAttribute('aria-current'), 'true');
-  assert.equal(f.grid.scrollTop, mainScroll);
-  assert.equal(f.d.documentElement.classList.contains('modal-open'), true);
-  thumbs[15].click(); await tick();
-  f.d.querySelector('.lb-next').click(); await tick();
-  f.d.querySelector('.lb-close').click(); await tick();
-  assert.equal(f.d.activeElement, thumbs[16]);
-  assert.equal(thumbs[16].getAttribute('aria-current'), 'true');
-  f.d.getElementById('browse-close').click(); await tick();
+  assert.equal(f.d.getElementById('browse').open, false);
+  assert.equal(f.d.getElementById('lightbox').open, false);
+  assert.equal(f.d.activeElement, card);
+  assert.equal(f.state().file, f.files()[15]);
+  const img = card.querySelector('img');
+  assert.equal(f.w.scrollY, 1500 + 400 * img.height / img.width / 2 - 484);
   assert.equal(f.d.documentElement.classList.contains('modal-open'), false);
+  // The main feed still provides access to the original viewer.
+  card.click(); await tick();
+  assert.equal(f.d.getElementById('lightbox').open, true);
   assert.deepEqual(f.errors, []);
 });
 
@@ -672,7 +667,7 @@ test('keyboard focus can preview and open a desktop card without a mouse', async
   thumbs[3].focus(); await tick();
   assert.equal(f.d.getElementById('hover-preview').hidden, false);
   thumbs[3].click(); await tick();
-  assert.ok(f.d.getElementById('lb-img').src.endsWith(f.files()[3]));
+  assert.equal(f.state().file, f.files()[3]);
 });
 
 test('hover image failures leave thumbnail click navigation available', async t => {
@@ -681,7 +676,7 @@ test('hover image failures leave thumbnail click navigation available', async t 
   pointer(f, thumbs[4], 'pointerover'); await hoverTick();
   assert.equal(f.d.getElementById('hover-preview').hidden, true);
   f.reject(false); thumbs[4].click(); await tick();
-  assert.ok(f.d.getElementById('lb-img').src.endsWith(f.files()[4]));
+  assert.equal(f.state().file, f.files()[4]);
   assert.deepEqual(f.errors, []);
 });
 
@@ -691,7 +686,8 @@ test('very short desktop windows keep controls available instead of overflowing 
   pointer(f, thumbs[0], 'pointerover'); await hoverTick();
   assert.equal(f.d.getElementById('hover-preview').hidden, true);
   thumbs[0].click(); await tick();
-  assert.equal(f.d.getElementById('lightbox').open, true);
+  assert.equal(f.d.getElementById('lightbox').open, false);
+  assert.equal(f.d.getElementById('browse').open, false);
 });
 
 function motionOrigin(thumb) {
@@ -786,7 +782,8 @@ test('scroll and modal entry cancel motion immediately instead of leaving floati
   preview.click(); await tick();
   assert.equal(next.cancelled, true);
   assert.equal(preview.hidden, true);
-  assert.equal(f.d.getElementById('lightbox').open, true);
+  assert.equal(f.d.getElementById('lightbox').open, false);
+  assert.equal(f.d.getElementById('browse').open, false);
 });
 
 test('reduced motion bypasses both pull and return animations', async t => {
@@ -819,7 +816,7 @@ test('a cached preview stays usable when its high-resolution detail fails', asyn
   assert.equal(f.d.getElementById('hover-preview').hidden, false);
   assert.equal(f.d.getElementById('hover-preview-img').src, image.src);
   f.reject(false); f.d.getElementById('hover-preview').click(); await tick();
-  assert.ok(f.d.getElementById('lb-img').src.endsWith(f.files()[0]));
+  assert.equal(f.state().file, f.files()[0]);
   assert.deepEqual(f.errors, []);
 });
 

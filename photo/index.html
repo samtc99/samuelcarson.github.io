@@ -3,12 +3,13 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="color-scheme" content="dark" />
   <meta name="theme-color" content="#0b0b0c" />
   <title>Samuel Carson — Photography</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600&family=Playfair+Display:wght@500;600&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="./styles.css?v=desktop-hover-3" />
+  <link rel="stylesheet" href="./styles.css?v=gallery-navigation-1" />
 </head>
 <body>
   <svg class="icon-defs" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
@@ -44,7 +45,7 @@
   </dialog>
   <button id="hover-preview" class="hover-preview" type="button" tabindex="-1" hidden>
     <img id="hover-preview-img" alt="" />
-    <span class="hover-preview-label">Click to view full photograph</span>
+    <span class="hover-preview-label">Click to view in feed</span>
   </button>
   <dialog id="lightbox" class="lightbox" aria-label="Full-screen photograph">
     <button class="icon-button lb-close" type="button" aria-label="Close full-screen photograph"><svg class="icon" aria-hidden="true"><use href="#icon-close"/></svg></button>
@@ -52,7 +53,7 @@
     <button class="icon-button lb-next" type="button" aria-label="Next photograph"><svg class="icon" aria-hidden="true"><use href="#icon-right"/></svg></button>
     <figure class="lb-figure"><img id="lb-img" alt="" /><figcaption id="lb-cap"></figcaption></figure>
   </dialog>
-  <script src="./photos.js?v=desktop-hover-3"></script>
-  <script src="./app.js?v=desktop-hover-3"></script>
+  <script src="./photos.js?v=gallery-navigation-1"></script>
+  <script src="./app.js?v=gallery-navigation-1"></script>
 </body>
 </html>
