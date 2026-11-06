@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en" data-use-originals="true" data-photo-base="https://samtc.me/photo">
+<html lang="en" data-original-photo-base="https://samtc.me/photo" data-photo-base="https://raw.githubusercontent.com/samtc99/samuelcarson.github.io/feat/mobile-photo-deck/photo">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
@@ -256,6 +256,7 @@ const MOBILE_QUERY = "(max-width: 700px), (max-width: 1000px) and (pointer: coar
 const mobileView = matchMedia(MOBILE_QUERY);
 const reducedMotion = matchMedia("(prefers-reduced-motion: reduce)");
 const assetBase = (document.documentElement.dataset.photoBase || "/photo").replace(/\/$/, "");
+const originalBase = (document.documentElement.dataset.originalPhotoBase || assetBase).replace(/\/$/, "");
 // A code-only review can reuse the site's already-published photographs.
 const useOriginals = document.documentElement.dataset.useOriginals === "true";
 
@@ -308,9 +309,9 @@ function buildPhotos() {
     const title = photo.title || photo.file.replace(/\.[^.]+$/, "").replace(/-/g, " ");
     const rendition = photo.file.replace(/\.[^.]+$/, ".webp");
     return { ...photo, title, alt: photo.alt || title,
-      src: `${assetBase}/images/${photo.file}`,
-      preview: useOriginals ? `${assetBase}/images/${photo.file}` : `${assetBase}/previews/${rendition}`,
-      thumb: useOriginals ? `${assetBase}/images/${photo.file}` : `${assetBase}/thumbs/${rendition}` };
+      src: `${originalBase}/images/${photo.file}`,
+      preview: useOriginals ? `${originalBase}/images/${photo.file}` : `${assetBase}/previews/${rendition}`,
+      thumb: useOriginals ? `${originalBase}/images/${photo.file}` : `${assetBase}/thumbs/${rendition}` };
   });
   const shift = mixed.length ? ((shuffleRotation % mixed.length) + mixed.length) % mixed.length : 0;
   return [...mixed.slice(shift), ...mixed.slice(0, shift)];
@@ -350,11 +351,13 @@ function saveState() {
   catch { /* Gallery navigation also works when browser storage is unavailable. */ }
 }
 function setActive(index) {
+  const previous = cards[activeIndex];
   activeIndex = Math.max(0, Math.min(index, photos.length - 1));
   const count = photos.length ? activeIndex + 1 : 0;
   counter.textContent = `${String(count).padStart(2, "0")} / ${photos.length}`;
   counter.setAttribute("aria-label", `Photo ${count} of ${photos.length}`);
-  cards.forEach((card, i) => card.setAttribute("aria-current", String(i === activeIndex)));
+  if (previous && previous !== cards[activeIndex]) previous.setAttribute("aria-current", "false");
+  if (cards[activeIndex]?.getAttribute("aria-current") !== "true") cards[activeIndex]?.setAttribute("aria-current", "true");
   saveState();
 }
 function scrollToPhoto(index, { focus = false, smooth = false } = {}) {
@@ -523,9 +526,13 @@ function updateScrollPosition() {
   if (requestedIndex !== null) closest = requestedIndex;
   else if (end > 0 && grid.scrollTop >= end - 2) closest = cards.length - 1;
   if (closest !== activeIndex) setActive(closest);
-  // Warm only the immediate neighbors rather than downloading the full deck.
-  for (const i of [closest - 1, closest, closest + 1]) {
-    if (cards[i]) cards[i].querySelector("img").loading = "eager";
+  // Prioritize the chosen photo; warm only small, immediate neighbors.
+  const neighbors = navigator.connection?.saveData || useOriginals ? [closest] : [closest, closest - 1, closest + 1];
+  for (const i of neighbors) {
+    if (!cards[i]) continue;
+    const image = cards[i].querySelector("img");
+    if (image.loading !== "eager") image.loading = "eager";
+    image.fetchPriority = i === closest ? "high" : "low";
   }
 }
 grid.addEventListener("scroll", () => {
@@ -543,7 +550,7 @@ function openBrowse(trigger) {
   browseTrigger = trigger;
   browseSelection = null;
   if (sheetDirty) {
-    sheet.innerHTML = photos.map((photo, i) => `<button class="thumbnail" type="button" data-index="${i}" aria-label="Jump to photo ${i + 1}: ${escapeHTML(photo.title)}"><img src="${escapeHTML(photo.thumb)}" alt="" width="300" height="400" loading="lazy" decoding="async" /></button>`).join("");
+    sheet.innerHTML = photos.map((photo, i) => `<button class="thumbnail" type="button" data-index="${i}" aria-label="Jump to photo ${i + 1}: ${escapeHTML(photo.title)}"><img src="${escapeHTML(photo.thumb)}" alt="" width="300" height="400" loading="lazy" decoding="async" fetchpriority="low" /></button>`).join("");
     sheet.querySelectorAll("img").forEach((img, i) => img.addEventListener("error", () => { img.src = photos[i].src; }, { once: true }));
     sheetDirty = false;
   }
@@ -648,21 +655,19 @@ grid.addEventListener("keydown", event => {
   const index = event.key === "Home" ? 0 : event.key === "End" ? photos.length - 1 : activeIndex + directions[event.key];
   scrollToPhoto(index, { focus: true, smooth: true });
 });
+function randomPhotoIndex() {
+  if (photos.length < 2) return activeIndex;
+  // Choose from the other N-1 photographs; the current one is never returned.
+  const sample = crypto.getRandomValues(new Uint32Array(1))[0] / 4294967296;
+  const index = Math.floor(sample * (photos.length - 1));
+  return index >= activeIndex ? index + 1 : index;
+}
 document.getElementById("shuffle").addEventListener("click", () => {
-  const position = capturePosition();
-  const currentIndex = activeIndex;
-  const seed = crypto.getRandomValues(new Uint32Array(1))[0];
-  shuffleSeed = seed === shuffleSeed ? (seed + 1) >>> 0 : seed;
-  shuffleRotation = 0;
-  const mixed = buildPhotos();
-  // Rotate the balanced mix so the current photo stays at its current index.
-  const shift = (mixed.findIndex(photo => photo.file === position.file) - currentIndex + mixed.length) % mixed.length;
-  shuffleRotation = shift;
-  photos = [...mixed.slice(shift), ...mixed.slice(0, shift)];
-  render();
-  restorePosition(position);
+  if (photos.length < 2) return;
+  // A random jump needs no reordering or image-node replacement.
+  scrollToPhoto(randomPhotoIndex());
   updateScrollPosition();
-  status.textContent = "Deck reshuffled. Your current photograph stays in place.";
+  status.textContent = `Random photograph ${activeIndex + 1} of ${photos.length}. ${photos[activeIndex].title}.`;
   const label = document.querySelector("#shuffle span");
   label.textContent = "Shuffled";
   clearTimeout(shuffleLabelTimer);
