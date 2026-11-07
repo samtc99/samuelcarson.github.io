@@ -10,6 +10,80 @@ const app = fs.readFileSync(path.join(root, 'app.js'), 'utf8');
 const tick = () => new Promise(resolve => setTimeout(resolve, 45));
 const hoverTick = () => new Promise(resolve => setTimeout(resolve, 165));
 
+test('auto-scroll accumulates fractions at 10px/sec and caps stalled frames', async t => {
+  const f = fixture({ documentDeck:true }); t.after(f.close); await tick();
+  f.evaluate('startAutoScroll(); cancelAnimationFrame(autoScrollFrame); autoScrollTick(0); cancelAnimationFrame(autoScrollFrame);');
+  for (let time = 10; time <= 1000; time += 10) {
+    f.evaluate(`autoScrollTick(${time}); cancelAnimationFrame(autoScrollFrame);`);
+  }
+  assert.ok(Math.abs(f.w.scrollY - 10) < .001);
+  f.evaluate('autoScrollTick(6000); cancelAnimationFrame(autoScrollFrame);');
+  assert.ok(Math.abs(f.w.scrollY - 10.5) < .001);
+});
+
+test('manual scroll yields and resumes after momentum settles; Pause cancels resumption', async t => {
+  const f = fixture({ documentDeck:true }); t.after(f.close); await tick();
+  const button = f.d.getElementById('auto-scroll');
+  assert.equal(button.getAttribute('aria-pressed'), 'false');
+  button.click();
+  f.grid.dispatchEvent(new f.w.Event('wheel', { bubbles:true }));
+  assert.equal(f.evaluate('autoScrollPlaying'), false);
+  assert.equal(button.getAttribute('aria-pressed'), 'true');
+  await new Promise(resolve => setTimeout(resolve, 100));
+  f.w.scrollTo({ top:300 });
+  await new Promise(resolve => setTimeout(resolve, 100));
+  assert.equal(f.evaluate('autoScrollPlaying'), false, 'momentum extends the quiet period');
+  await new Promise(resolve => setTimeout(resolve, 300));
+  assert.equal(f.evaluate('autoScrollPlaying'), true);
+  assert.ok(f.w.scrollY >= 300, 'resumes from the user-selected position');
+  f.grid.dispatchEvent(new f.w.Event('wheel', { bubbles:true }));
+  button.click();
+  assert.equal(button.getAttribute('aria-pressed'), 'false');
+  await new Promise(resolve => setTimeout(resolve, 1300));
+  assert.equal(f.evaluate('autoScrollPlaying'), false);
+});
+
+test('scroll resumption waits for release and dialogs cancel it', async t => {
+  const f = fixture({ documentDeck:true }); t.after(f.close); await tick();
+  f.d.getElementById('auto-scroll').click();
+  f.grid.dispatchEvent(new f.w.Event('pointerdown', { bubbles:true }));
+  await new Promise(resolve => setTimeout(resolve, 1300));
+  assert.equal(f.evaluate('autoScrollPlaying'), false);
+  f.grid.dispatchEvent(new f.w.Event('pointerup', { bubbles:true }));
+  await new Promise(resolve => setTimeout(resolve, 1300));
+  assert.equal(f.evaluate('autoScrollPlaying'), true);
+  f.grid.dispatchEvent(new f.w.Event('wheel', { bubbles:true }));
+  f.d.querySelector('.browse-trigger').click();
+  await new Promise(resolve => setTimeout(resolve, 1300));
+  assert.equal(f.evaluate('autoScrollPlaying'), false);
+  assert.equal(f.evaluate('autoScrollResumePending'), false);
+});
+
+test('subpixel correction fills the gaps between rounded native scroll positions', async t => {
+  const f = fixture({ documentDeck:true }); t.after(f.close); await tick();
+  f.w.scrollTo = ({top}) => {
+    // Simulate a browser that only exposes integer native scroll offsets.
+    Object.defineProperty(f.w, 'scrollY', { configurable:true, value:Math.round(top) });
+  };
+  // fixture scrollY must be reconfigurable for this browser-rounding simulation.
+  f.evaluate('startAutoScroll(); cancelAnimationFrame(autoScrollFrame); autoScrollTick(0); cancelAnimationFrame(autoScrollFrame); autoScrollTick(16); cancelAnimationFrame(autoScrollFrame);');
+  assert.match(f.grid.style.transform, /-0\.16px/);
+  f.evaluate('pauseAutoScroll()');
+  assert.equal(f.grid.style.transform, '');
+  assert.equal(f.grid.style.willChange, '');
+});
+
+test('auto-scroll respects reduced motion and stops at the end', async t => {
+  const reduced = fixture({ reduced:true, documentDeck:true }); t.after(reduced.close); await tick();
+  assert.equal(reduced.d.getElementById('auto-scroll').disabled, true);
+  reduced.evaluate('startAutoScroll()');
+  assert.equal(reduced.evaluate('autoScrollPlaying'), false);
+  const f = fixture({ documentDeck:true }); t.after(f.close); await tick();
+  f.evaluate('startAutoScroll(); cancelAnimationFrame(autoScrollFrame); autoScrollPosition = autoScrollEnd - .1; autoScrollTime = 0; autoScrollTick(50)');
+  assert.equal(f.evaluate('autoScrollPlaying'), false);
+  assert.equal(f.w.scrollY, f.evaluate('autoScrollEnd'));
+});
+
 // DOM/state tests, not a substitute for reviewing native scrolling on a phone.
 function fixture({ width = 390, height = 844, coarse = true, saved, data = collection, blockedStorage = false, reduced = false, originals = false, assetBase, originalBase, saveData = false, documentDeck = false } = {}) {
   const errors = [];
@@ -76,7 +150,7 @@ function fixture({ width = 390, height = 844, coarse = true, saved, data = colle
     if (grid.scrollTop !== top) { grid.scrollTop = top; grid.dispatchEvent(new w.Event('scroll')); }
   };
   let windowY = 0;
-  Object.defineProperty(w, 'scrollY', { get:() => windowY });
+  Object.defineProperty(w, 'scrollY', { configurable:true, get:() => windowY });
   w.scrollTo = options => {
     windowY = documentDeck ? Math.max(0, Math.min(options.top, d.documentElement.scrollHeight - height)) : options.top;
     if (documentDeck) w.dispatchEvent(new w.Event('scroll'));
@@ -116,8 +190,8 @@ function fixture({ width = 390, height = 844, coarse = true, saved, data = colle
   };
   if (saved) w.sessionStorage.setItem('samuel-carson:photo-deck:v1', JSON.stringify(saved));
   if (blockedStorage) Object.defineProperty(w, 'sessionStorage', { get() { throw new Error('Storage unavailable'); } });
-  w.eval(data + '\n' + app);
-  return { w, d, grid, errors, scrolls, pending, close:() => w.close(),
+  w.eval(data + '\n' + app + '\nwindow.testEvaluate = code => eval(code);');
+  return { w, d, grid, errors, scrolls, pending, evaluate:code => w.testEvaluate(code), close:() => w.close(),
     scrollTo(options) { grid.dispatchEvent(new w.Event('wheel')); grid.scrollTo(options); },
     async resizeObserved() { observers.forEach(callback => callback()); await tick(); },
     images:() => [...grid.querySelectorAll('img')],

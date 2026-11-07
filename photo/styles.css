@@ -14,6 +14,9 @@ button:focus-visible,a:focus-visible { outline:2px solid var(--accent); outline-
 .name { display:inline-block; color:var(--fg); text-decoration:none; font:600 20px "Playfair Display",Georgia,serif; letter-spacing:.02em; }
 .name::after { content:""; display:block; width:34px; height:2px; margin-top:8px; border-radius:2px; background:var(--accent); opacity:.9; }
 .top-actions { display:flex; align-items:center; gap:4px; color:var(--muted); }
+.auto-scroll-button { display:flex; align-items:center; justify-content:center; gap:7px; min-width:76px; min-height:44px; padding:0 10px; border-radius:8px; background:transparent; color:var(--muted); font-size:12px; font-variant-numeric:tabular-nums; }
+.auto-scroll-button[aria-pressed="true"] { color:var(--fg); }
+.auto-scroll-button:disabled { opacity:.45; cursor:default; }
 .frame { width:100%; padding:0 var(--gutter) var(--gutter); }
 .masonry { --columns:3; position:relative; width:100%; }
 .card { display:block; position:absolute; top:0; left:0; margin:0; padding:0; overflow:hidden; border-radius:var(--radius); background:rgba(255,255,255,.02); cursor:zoom-in; text-align:left; }
