@@ -72,3 +72,24 @@ background work. The desktop feed selects an optimized or original candidate
 based on display size and pixel density. Mobile scrolling uses cached card
 positions; desktop layout skips unchanged resize observations. See
 [performance.md](performance.md) for measured image bytes, scroll reads and scope.
+
+## Desktop drag experiment
+
+After the second-click pull has fully settled, grab the card and drag it around.
+It keeps its dimensions, image, angle and shadow. Release to leave it there;
+click afterward to animate back to the extraction path and reverse into the deck.
+The card is constrained below the header and within the viewport. A grab/grabbing
+cursor and tooltip explain the interaction. A movement threshold prevents small
+click jitter from turning into a drag, and release does not count as a return click.
+
+Pointer movement uses capture and one transform update per animation frame,
+without image requests or per-move geometry reads. Native image dragging is
+suppressed for extracted cards. Pointer cancellation, resize, blur, Escape and
+selection changes clean up capture, queued frames and pending return animations.
+Mobile thumbnail navigation stays unchanged.
+
+Validation: DOM checks for drag/click separation, release suppression, bounds,
+capture cleanup, cancellation and stale return completions. Chromium checks cover
+real pointer drags to all page edges, unchanged size and neighboring cards, no
+new image requests, held/released cursors, click-to-return, small movement and
+reduced motion. Held-card screenshot inspected.

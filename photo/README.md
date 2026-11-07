@@ -136,3 +136,16 @@ Fallback removes every picture source before retrying an original.
 Mobile card positions are cached after layout and searched without reading every
 card on each scroll frame. Desktop layout skips unchanged resize observations.
 See `review/performance.md` for the local before/after measurements and limits.
+
+## Dragging extracted desktop cards
+
+Once the outward pull finishes, its grab cursor and title indicate that the
+extracted card can be moved with a mouse or trackpad. A 6px movement threshold
+separates clicks from drags. Pointer capture keeps the gesture attached to the
+card; transform writes are batched once per animation frame. Bounds are measured
+at drag start, and the rotated card stays within the visible page below the header.
+Release leaves the card in place. Its release click is consumed so it cannot
+accidentally return the card. A later click glides from the dropped position back
+to the original extraction path, then reverses the pull and lowers into its slot.
+Escape and lifecycle cancellation restore safely, including interrupted drags or
+returns. Reduced motion returns immediately. Mobile scrolling is unaffected.

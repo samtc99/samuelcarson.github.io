@@ -773,3 +773,60 @@ test('a failed responsive feed copy removes every source before falling back to 
  assert.ok(image.src.includes('/images/'));assert.equal(image.closest('.card').classList.contains('is-error'),false);
  image.dispatchEvent(new f.w.Event('error'));assert.equal(image.closest('.card').classList.contains('is-error'),true);assert.deepEqual(f.errors,[]);
 });
+
+function cardPointer(f,target,type,x,y,id=1) {
+ const event=new f.w.MouseEvent(type,{bubbles:true,cancelable:true,clientX:x,clientY:y,button:0});
+ Object.defineProperties(event,{pointerId:{value:id},pointerType:{value:'mouse'},isPrimary:{value:true}});
+ target.dispatchEvent(event);
+}
+test('drag release leaves a same-size card extracted, consumes its release click, and a later click returns it', async t => {
+ const f=fixture({width:1440,height:900,coarse:false});t.after(f.close);await tick();
+ const thumbs=openDesktopOverview(f),card=thumbs[7],sheet=f.d.getElementById('contact-sheet');card.click();card.click();
+ let captured=null;card.setPointerCapture=id=>{captured=id};card.hasPointerCapture=id=>captured===id;card.releasePointerCapture=()=>{captured=null};
+ card.getBoundingClientRect=()=>({left:300,top:200,right:500,bottom:467,width:200,height:267});
+ const width=card.style.width,height=card.style.height;
+ cardPointer(f,card,'pointerdown',400,300);cardPointer(f,card,'pointermove',600,450);await tick();
+ assert.equal(captured,1);assert.ok(card.style.transform.includes('200px, 150px'));assert.equal(card.style.width,width);assert.equal(card.style.height,height);
+ cardPointer(f,card,'pointerup',600,450);
+ card.dispatchEvent(new f.w.MouseEvent('click',{bubbles:true,detail:1}));
+ assert.equal(card.classList.contains('is-extracted'),true);assert.equal(card.classList.contains('is-dragging'),false);assert.equal(captured,null);
+ await tick();card.click();assert.equal(sheet.children[7],card);assert.equal(card.classList.contains('is-extracted'),false);assert.deepEqual(f.errors,[]);
+});
+test('small pointer movement remains a return click rather than starting a drag', async t => {
+ const f=fixture({width:1440,height:900,coarse:false});t.after(f.close);await tick();
+ const card=openDesktopOverview(f)[7];card.click();card.click();
+ card.getBoundingClientRect=()=>({left:300,top:200,right:500,bottom:467,width:200,height:267});
+ cardPointer(f,card,'pointerdown',400,300);cardPointer(f,card,'pointermove',403,302);cardPointer(f,card,'pointerup',403,302);
+ card.dispatchEvent(new f.w.MouseEvent('click',{bubbles:true,detail:1}));
+ assert.equal(card.classList.contains('is-extracted'),false);assert.deepEqual(f.errors,[]);
+});
+test('drag positions clamp to viewport bounds and resize releases capture and restores the slot', async t => {
+ const f=fixture({width:1440,height:900,coarse:false});t.after(f.close);await tick();
+ const card=openDesktopOverview(f)[7];card.click();card.click();
+ card.getBoundingClientRect=()=>({left:300,top:200,right:500,bottom:467,width:200,height:267});
+ let captured=null;card.setPointerCapture=id=>{captured=id};card.hasPointerCapture=id=>captured===id;card.releasePointerCapture=()=>{captured=null};
+ cardPointer(f,card,'pointerdown',400,300);cardPointer(f,card,'pointermove',10000,10000);await tick();
+ assert.ok(card.style.transform.includes('922px, 415px'));
+ f.w.dispatchEvent(new f.w.Event('resize'));
+ assert.equal(captured,null);assert.equal(f.d.getElementById('contact-sheet').children[7],card);assert.equal(card.classList.contains('is-dragging'),false);
+ assert.equal(card.hasAttribute('style'),false);assert.deepEqual(f.errors,[]);
+});
+test('pointer cancellation leaves the extracted card usable and clears its grabbing state', async t => {
+ const f=fixture({width:1440,height:900,coarse:false});t.after(f.close);await tick();
+ const card=openDesktopOverview(f)[7];card.click();card.click();
+ card.getBoundingClientRect=()=>({left:300,top:200,right:500,bottom:467,width:200,height:267});
+ cardPointer(f,card,'pointerdown',400,300);cardPointer(f,card,'pointermove',450,350);await tick();cardPointer(f,card,'pointercancel',450,350);
+ assert.equal(card.classList.contains('is-extracted'),true);assert.equal(card.classList.contains('is-dragging'),false);
+ card.click();assert.equal(card.classList.contains('is-extracted'),false);assert.deepEqual(f.errors,[]);
+});
+
+test('changing selection during the dragged-card return cancels the old homing animation safely', async t => {
+ const f=fixture({width:1440,height:900,coarse:false});t.after(f.close);await tick();
+ const motions=reverseMotionFixture(f),thumbs=openDesktopOverview(f),card=thumbs[7],sheet=f.d.getElementById('contact-sheet');
+ card.click();card.click();motions[0].finishReverse();await tick();
+ card.getBoundingClientRect=()=>({left:300,top:200,right:500,bottom:467,width:200,height:267});
+ cardPointer(f,card,'pointerdown',400,300);cardPointer(f,card,'pointermove',600,450);await tick();cardPointer(f,card,'pointerup',600,450);await tick();
+ card.click();assert.equal(motions.length,3);thumbs[9].click();assert.equal(motions[2].cancelled,true);
+ motions[2].finishReverse();await tick();assert.equal(sheet.children[7],card);assert.equal(thumbs[9].classList.contains('is-pulled'),true);
+ assert.equal(sheet.children.length,106);assert.deepEqual(f.errors,[]);
+});
