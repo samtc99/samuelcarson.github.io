@@ -56,6 +56,8 @@ dialog::backdrop { background:rgba(0,0,0,.82); }
   .thumbnail:hover,.thumbnail:focus-visible { transform:translateY(-20px); box-shadow:0 0 0 1px rgba(255,255,255,.18),0 14px 24px rgba(0,0,0,.65); }
   .thumbnail.is-pulled { transform:translateY(-80px); box-shadow:0 0 0 1px rgba(255,255,255,.18),0 14px 24px rgba(0,0,0,.65); }
   .thumbnail.is-extracted { position:fixed; z-index:40; margin:0; aspect-ratio:auto; transform:rotate(-2deg); transition:none; cursor:pointer; overflow:visible; border:0; background:transparent; box-shadow:none; filter:drop-shadow(0 12px 18px rgba(0,0,0,.65)); will-change:transform; }
+  .thumbnail.is-extracted[aria-current="true"] { outline:none; }
+  .thumbnail.is-extracted[aria-current="true"]::after { display:none; }
   .thumbnail.is-extracted.is-draggable { cursor:grab; touch-action:none; user-select:none; -webkit-user-select:none; }
   .thumbnail.is-extracted.is-dragging { cursor:grabbing; filter:drop-shadow(0 16px 24px rgba(0,0,0,.75)); }
   .thumbnail.is-extracted img { -webkit-user-drag:none; user-select:none; }

@@ -830,3 +830,55 @@ test('changing selection during the dragged-card return cancels the old homing a
  motions[2].finishReverse();await tick();assert.equal(sheet.children[7],card);assert.equal(thumbs[9].classList.contains('is-pulled'),true);
  assert.equal(sheet.children.length,106);assert.deepEqual(f.errors,[]);
 });
+
+test('desktop Browse remembers its last selection and scroll without moving the main feed', async t => {
+ const f=fixture({width:1440,height:900,coarse:false});t.after(f.close);await tick();
+ const thumbs=openDesktopOverview(f),sheet=f.d.getElementById('contact-sheet'),file=f.state().file;
+ thumbs[25].click();assert.equal(thumbs[25].getAttribute('aria-current'),'true');assert.equal(thumbs[0].getAttribute('aria-current'),'false');
+ sheet.scrollTop=123;f.d.getElementById('browse-close').click();await tick();f.d.querySelector('.top .browse-trigger').click();
+ assert.equal(f.d.activeElement,thumbs[25]);assert.equal(sheet.scrollTop,123);assert.equal(f.state().file,file);assert.equal(f.w.scrollY,0);assert.deepEqual(f.errors,[]);
+});
+test('changing the feed photo resets Browse memory to that new photograph', async t => {
+ const f=fixture({width:1440,height:900,coarse:false});t.after(f.close);await tick();
+ const thumbs=openDesktopOverview(f);thumbs[25].click();f.d.getElementById('browse-close').click();await tick();
+ f.w.crypto.getRandomValues=a=>{a[0]=0;return a};f.d.querySelector('.desktop-shuffle').click();await tick();
+ f.d.querySelector('.top .browse-trigger').click();const expected=f.files().indexOf(f.state().file);
+ assert.notEqual(expected,25);assert.equal(f.d.activeElement,thumbs[expected]);assert.equal(thumbs[expected].getAttribute('aria-current'),'true');assert.deepEqual(f.errors,[]);
+});
+test('reopening Browse at a new viewport width centers the remembered photograph', async t => {
+ const f=fixture({width:1440,height:900,coarse:false});t.after(f.close);await tick();
+ const thumbs=openDesktopOverview(f);thumbs[25].focus();f.d.getElementById('browse-close').click();await tick();await f.viewport(1024,900,false);
+ f.d.querySelector('.top .browse-trigger').click();assert.equal(f.d.activeElement,thumbs[25]);assert.equal(f.scrolls.at(-1).element,thumbs[25]);assert.deepEqual(f.errors,[]);
+});
+test('arrow keys move an extracted card without scrolling, and Shift moves it faster', async t => {
+ const f=fixture({width:1440,height:900,coarse:false});t.after(f.close);await tick();
+ const card=openDesktopOverview(f)[7],sheet=f.d.getElementById('contact-sheet');card.click();card.click();
+ card.getBoundingClientRect=()=>({left:300,top:200,right:500,bottom:467,width:200,height:267});
+ const src=card.querySelector('img').src;
+ const first=new f.w.KeyboardEvent('keydown',{key:'ArrowRight',bubbles:true,cancelable:true});card.dispatchEvent(first);
+ card.dispatchEvent(new f.w.KeyboardEvent('keydown',{key:'ArrowDown',shiftKey:true,bubbles:true,cancelable:true}));await tick();
+ assert.equal(first.defaultPrevented,true);assert.ok(card.style.transform.includes('12px, 36px'));assert.equal(sheet.scrollTop,0);assert.equal(f.w.scrollY,0);
+ assert.equal(card.querySelector('img').src,src);assert.equal(card.classList.contains('is-dragging'),false);assert.deepEqual(f.errors,[]);
+});
+test('Escape animates an extracted card back, and a second Escape can close Browse immediately', async t => {
+ const f=fixture({width:1440,height:900,coarse:false});t.after(f.close);await tick();const motions=reverseMotionFixture(f),card=openDesktopOverview(f)[7];
+ card.click();card.click();card.dispatchEvent(new f.w.KeyboardEvent('keydown',{key:'Escape',bubbles:true,cancelable:true}));
+ assert.equal(card.classList.contains('is-extracted'),true);assert.ok(motions.every(m=>m.reversed));assert.equal(f.d.getElementById('browse').open,true);
+ card.dispatchEvent(new f.w.KeyboardEvent('keydown',{key:'Escape',bubbles:true,cancelable:true}));await tick();
+ assert.equal(f.d.getElementById('browse').open,false);assert.equal(card.classList.contains('is-extracted'),false);assert.equal(f.d.getElementById('contact-sheet').children[7],card);assert.deepEqual(f.errors,[]);
+});
+test('activation prioritizes the selected image and extraction reuses a decoded original fallback', async t => {
+ const f=fixture({width:1440,height:900,coarse:false});t.after(f.close);await tick();const card=openDesktopOverview(f)[7],image=card.querySelector('img');
+ assert.ok(card.getAttribute('aria-label').startsWith('Select photograph'));
+ image.dispatchEvent(new f.w.Event('error'));f.load(image);f.hold(true);card.click();
+ assert.equal(image.fetchPriority,'high');assert.equal(image.loading,'eager');assert.equal(f.pending.length,0);
+ card.click();assert.equal(f.pending.length,0);assert.ok(image.src.includes('/images/'));assert.deepEqual(f.errors,[]);
+});
+
+test('rapid close/reopen remembers the overview without stale close events overriding a feed change', async t => {
+ const f=fixture({width:1440,height:900,coarse:false});t.after(f.close);await tick();const thumbs=openDesktopOverview(f),sheet=f.d.getElementById('contact-sheet');
+ thumbs[25].click();sheet.scrollTop=123;f.d.getElementById('browse-close').click();f.d.querySelector('.top .browse-trigger').click();
+ assert.equal(f.d.activeElement,thumbs[25]);assert.equal(sheet.scrollTop,123);
+ f.d.getElementById('browse-close').click();f.w.crypto.getRandomValues=a=>{a[0]=0;return a};f.d.querySelector('.desktop-shuffle').click();f.d.querySelector('.top .browse-trigger').click();
+ const expected=f.files().indexOf(f.state().file);await tick();assert.equal(f.d.activeElement,thumbs[expected]);assert.notEqual(expected,25);assert.deepEqual(f.errors,[]);
+});

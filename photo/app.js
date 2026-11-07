@@ -98,6 +98,8 @@ let requestedIndex = null;
 let viewerReturn = null;
 let shuffleLabelTimer;
 let overviewReturn = null;
+let browseIndex = 0;
+let browseMemory = null;
 let pulledCard = null;
 let extraction = null;
 function dragBounds(state) {
@@ -112,10 +114,16 @@ function dragBounds(state) {
 }
 function paintCardDrag(state) {
   state.dragFrame = 0;
-  if (extraction !== state || !state.drag || state.returning) return;
+  if (extraction !== state || state.returning) return;
   state.dragX = state.nextDragX;
   state.dragY = state.nextDragY;
   state.card.style.transform = `translate(${state.dragX}px, ${state.dragY}px) rotate(-2deg)`;
+}
+function queueCardMove(state,x,y,bounds) {
+  const clamp = (value,min,max) => Math.max(min,Math.min(max,value));
+  state.nextDragX = clamp(x,bounds.minX,bounds.maxX);
+  state.nextDragY = clamp(y,bounds.minY,bounds.maxY);
+  if (!state.dragFrame) state.dragFrame = requestAnimationFrame(() => paintCardDrag(state));
 }
 function moveCardDrag(state, event) {
   const drag = state.drag;
@@ -123,10 +131,7 @@ function moveCardDrag(state, event) {
   if (!drag.moved && Math.hypot(dx,dy) < 6) return;
   drag.moved = true;
   state.card.classList.add("is-dragging");
-  const clamp = (value,min,max) => Math.max(min,Math.min(max,value));
-  state.nextDragX = clamp(drag.originX + dx,drag.bounds.minX,drag.bounds.maxX);
-  state.nextDragY = clamp(drag.originY + dy,drag.bounds.minY,drag.bounds.maxY);
-  if (!state.dragFrame) state.dragFrame = requestAnimationFrame(() => paintCardDrag(state));
+  queueCardMove(state,drag.originX + dx,drag.originY + dy,drag.bounds);
 }
 function endCardDrag(state, { cancelled = false } = {}) {
   if (!state.drag) return;
@@ -194,7 +199,7 @@ function extractCard(card) {
   const targetTop = Math.max(topEdge, Math.min(rect.top - 120, window.innerHeight - rect.height - 18));
   const targetLeft = Math.max(18, Math.min(rect.left + 18, window.innerWidth - rect.width - 18));
   Object.assign(card.style, {left:`${targetLeft}px`,top:`${targetTop}px`,width:`${rect.width}px`,height:`${rect.height}px`});
-  card.setAttribute("aria-label", `Return photograph to deck: ${photos[Number(card.dataset.index)].title}`);
+  card.setAttribute("aria-label", `Move photograph with arrow keys; Enter returns it to the deck: ${photos[Number(card.dataset.index)].title}`);
   const surface = document.createElement("span");
   surface.className = "extraction-surface";
   surface.append(...card.childNodes);
@@ -225,13 +230,13 @@ function extractCard(card) {
     if (extraction !== state || state.returning) return;
     state.settled = true;
     card.classList.add("is-draggable");
-    card.title = "Drag to move · click to return to the deck";
+    card.title = "Drag or use arrow keys to move · click or Enter to return";
   };
   if (state.motion?.finished) Promise.resolve(state.motion.finished).then(ready).catch(() => {});
   else ready();
   // The overview already uses optimized detail; reuse decoded pixels when ready.
   const image = surface.querySelector("img");
-  if (image.src === new URL(photos[Number(card.dataset.index)].preview, document.baseURI).href && image.complete && image.naturalWidth) {
+  if (image.complete && image.naturalWidth) {
     card.focus({preventScroll:true});
     return;
   }
@@ -258,7 +263,7 @@ function restoreExtractedCard(state, { slideBack = false, focus = false } = {}) 
   card.classList.remove("is-extracted","is-draggable","is-dragging");
   card.removeAttribute("title");
   if (style === null) card.removeAttribute("style"); else card.setAttribute("style",style);
-  card.setAttribute("aria-label", `Jump to photo ${Number(card.dataset.index)+1}: ${photos[Number(card.dataset.index)].title}`);
+  card.setAttribute("aria-label", overviewCardLabel(Number(card.dataset.index)));
   if (slideBack) {
     // Rejoin the deck at the exact 80px-raised endpoint of the reverse pull.
     // Commit that pose before allowing the original slide transition to run back.
@@ -321,7 +326,10 @@ function clearPulledCard({ focus = false, animate = false } = {}) {
   card.setAttribute("aria-expanded", "false");
   if (focus && card.isConnected) card.focus({preventScroll:true});
 }
-sheet.addEventListener("scroll", () => clearPulledCard(), {passive:true});
+sheet.addEventListener("scroll", () => {
+  if (!browse.open) return;
+  clearPulledCard();
+}, {passive:true});
 window.addEventListener("resize", () => clearPulledCard());
 window.addEventListener("blur", () => clearPulledCard());
 finePointer.addEventListener("change", () => clearPulledCard());
@@ -333,8 +341,20 @@ browse.addEventListener("click", event => {
   } else if (!event.target.closest(".thumbnail")) clearPulledCard();
 });
 browse.addEventListener("keydown", event => {
+  const state = extraction;
+  const directions = {ArrowLeft:[-1,0],ArrowRight:[1,0],ArrowUp:[0,-1],ArrowDown:[0,1]};
+  if (state?.settled && !state.returning && !state.drag && state.card.contains(event.target) && directions[event.key] && !event.altKey && !event.ctrlKey && !event.metaKey) {
+    event.preventDefault();
+    const [x,y] = directions[event.key], step = event.shiftKey ? 36 : 12;
+    queueCardMove(state,(state.nextDragX ?? state.dragX) + x*step,(state.nextDragY ?? state.dragY) + y*step,dragBounds(state));
+    return;
+  }
   if (event.key === "Escape" && pulledCard) {
-    event.preventDefault();event.stopPropagation();clearPulledCard({focus:true});
+    event.preventDefault();event.stopPropagation();
+    if (state?.returning) {
+      clearPulledCard();
+      closeBrowse();
+    } else clearPulledCard({focus:true,animate:true});
   }
 });
 
@@ -581,29 +601,64 @@ for (const type of ["wheel", "touchstart", "pointerdown", "keydown"]) {
 function syncModalState() {
   document.documentElement.classList.toggle("modal-open", browse.open || lightbox.open);
 }
+function rememberBrowse() {
+  // Capture while the dialog is visible, before native close hides its scroller.
+  browseMemory = mobileView.matches ? null : {file:photos[browseIndex]?.file,feedFile:photos[activeIndex]?.file,top:sheet.scrollTop,width:window.innerWidth};
+}
+function closeBrowse() {
+  rememberBrowse();
+  browse.close();
+}
+browse.addEventListener("cancel",rememberBrowse);
+function overviewCardLabel(index) {
+  const action = finePointer.matches && !mobileView.matches ? "Select photograph" : "Jump to photo";
+  return `${action} ${index+1}: ${photos[index].title}`;
+}
+function selectBrowseCard(index) {
+  const selected = sheet.children[index];
+  if (!selected) return;
+  if (browseIndex !== index) sheet.children[browseIndex]?.setAttribute("aria-current","false");
+  browseIndex = index;
+  if (selected.getAttribute("aria-current") !== "true") selected.setAttribute("aria-current","true");
+}
+sheet.addEventListener("focusin",event => {
+  const card = event.target.closest(".thumbnail");
+  if (card) selectBrowseCard(Number(card.dataset.index));
+});
 function openBrowse(trigger) {
   if (!photos.length) return;
   clearPulledCard();
   browseTrigger = trigger;
   browseSelection = null;
   if (sheetDirty) {
-    sheet.innerHTML = photos.map((photo, i) => `<button class="thumbnail" type="button" data-index="${i}" aria-label="Jump to photo ${i + 1}: ${escapeHTML(photo.title)}"><img src="${escapeHTML(photo.preview)}" alt="" width="300" height="400" loading="lazy" decoding="async" fetchpriority="low" /></button>`).join("");
+    sheet.innerHTML = photos.map((photo, i) => `<button class="thumbnail" type="button" data-index="${i}" aria-label="${escapeHTML(overviewCardLabel(i))}"><img src="${escapeHTML(photo.preview)}" alt="" width="300" height="400" loading="lazy" decoding="async" fetchpriority="low" /></button>`).join("");
     sheet.querySelectorAll("img").forEach((img, i) => img.addEventListener("error", () => { img.src = photos[i].src; }, { once: true }));
     sheetDirty = false;
   }
-  Array.from(sheet.children).forEach((button, i) => button.setAttribute("aria-current", String(i === activeIndex)));
+  const memory = !mobileView.matches && browseMemory?.feedFile === photos[activeIndex]?.file ? browseMemory : null;
+  const remembered = memory ? photos.findIndex(photo => photo.file === memory.file) : -1;
+  browseIndex = remembered >= 0 ? remembered : activeIndex;
+  Array.from(sheet.children).forEach((button, i) => {
+    button.setAttribute("aria-current",String(i === browseIndex));
+    button.setAttribute("aria-label",overviewCardLabel(i));
+  });
   document.getElementById("browse-count").textContent = `${photos.length} photographs · choose one to continue`;
   browse.showModal();
   syncModalState();
-  const selected = sheet.children[activeIndex];
+  const selected = sheet.children[browseIndex];
   selected.focus({ preventScroll: true });
-  selected.scrollIntoView({ block: "center", behavior: "instant" });
+  if (memory && remembered >= 0 && memory.width === window.innerWidth) sheet.scrollTop = memory.top;
+  else selected.scrollIntoView({ block: "center", behavior: "instant" });
 }
 document.querySelectorAll(".browse-trigger").forEach(button => button.addEventListener("click", () => openBrowse(button)));
-document.getElementById("browse-close").addEventListener("click", () => browse.close());
+document.getElementById("browse-close").addEventListener("click", closeBrowse);
 sheet.addEventListener("click", event => {
   const button = event.target.closest(".thumbnail");
   if (!button) return;
+  selectBrowseCard(Number(button.dataset.index));
+  const image = button.querySelector("img");
+  image.loading = "eager";
+  image.fetchPriority = "high";
   if (finePointer.matches && !mobileView.matches) {
     if (pulledCard === button) extractCard(button);
     else {
@@ -615,7 +670,7 @@ sheet.addEventListener("click", event => {
     return;
   }
   browseSelection = Number(button.dataset.index);
-  browse.close();
+  closeBrowse();
 });
 sheet.addEventListener("keydown", event => {
   const button = event.target.closest(".thumbnail");

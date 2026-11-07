@@ -58,24 +58,25 @@ border and original isolated stacking order, so cards in front continue to cover
 the lifted card. Only its top edge peeks farther out.
 Reduced-motion preferences disable the transition.
 
-On desktop, the first click slides the existing thumbnail card 80px upward within
-the stack, preserving size and stack order. The second click animates that same
-card up and out, progressively revealing it as it clears the deck. It keeps its
-border and dimensions; no zoom, separate preview or carousel is introduced.
-The second click requests the optimized higher-resolution detail copy at high priority and
-keeps the thumbnail visible until decoding succeeds. The swap never restarts
-motion; late results are ignored after return or selection changes. A failed
-request leaves the thumbnail usable. Hover and first click load no detail. A matching hidden slot preserves the deck layout.
-The reveal mask lives on an inner card surface, while a stable outer drop shadow
-follows that surface throughout the pull. Transform and mask animations share a
-start time; the shadow is not clipped away during motion.
-A third click reverses the live extraction and reveal animations, then lowers
-the card from its 80px-raised pose back into the stack in one sequence. Clicking
-while the outward pull is still running reverses from that exact progress.
-Repeated return clicks do not restart the animation. Outside clicks, Escape,
-scroll, resize and blur still restore immediately to keep navigation responsive. Reduced motion skips extraction animation.
-The main feed's original photograph viewer remains available from feed photos.
-Mobile keeps its native document scrolling and thumbnail-to-feed navigation.
+On desktop, the first click slides the card 80px upward within the stack. The
+second click pulls that same card out over 780ms with unchanged dimensions and
+styling. All overview cards start with optimized higher-resolution images;
+activation prioritizes the selected image, and extraction reuses any decoded
+preview or original fallback. A pending image can finish decoding without
+restarting movement. Late or failed results cannot disrupt another selection.
+A matching hidden slot preserves the deck layout. The reveal mask is on an
+inner surface, allowing the outer shadow to follow throughout the animation.
+
+Clicking the extracted card reverses both the live pull and the raised slide.
+Escape also starts the smooth return; another Escape closes Browse immediately.
+Outside clicks and lifecycle changes restore synchronously. Reduced motion
+skips transitions. The main feed retains its original photograph viewer, and
+mobile thumbnails retain their jump-to-feed behavior.
+
+Desktop Browse remembers its selected card and scroll position for the current
+feed photo. Reopening after a feed change selects that new photo. At a changed
+viewport width, it recenters the remembered card instead of reusing an old scroll
+offset. Selection outlines stay in the deck rather than floating over the reveal.
 
 ## Review without publishing
 
@@ -147,5 +148,6 @@ at drag start, and the rotated card stays within the visible page below the head
 Release leaves the card in place. Its release click is consumed so it cannot
 accidentally return the card. A later click glides from the dropped position back
 to the original extraction path, then reverses the pull and lowers into its slot.
-Escape and lifecycle cancellation restore safely, including interrupted drags or
-returns. Reduced motion returns immediately. Mobile scrolling is unaffected.
+Arrow keys move an extracted card by 12px; Shift + arrows moves by 36px, without
+scrolling the overview. Escape starts the animated return; a second Escape closes
+Browse. Lifecycle cancellation safely handles interrupted drags or returns. Reduced motion returns immediately. Mobile scrolling is unaffected.
