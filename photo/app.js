@@ -3,7 +3,6 @@ const STATE_KEY = "samuel-carson:photo-deck:v1";
 const MOBILE_QUERY = "(max-width: 700px), (max-width: 1000px) and (pointer: coarse) and (max-height: 600px)";
 const mobileView = matchMedia(MOBILE_QUERY);
 const reducedMotion = matchMedia("(prefers-reduced-motion: reduce)");
-const finePointer = matchMedia("(hover: hover) and (pointer: fine)");
 const assetBase = (document.documentElement.dataset.photoBase || "/photo").replace(/\/$/, "");
 const originalBase = (document.documentElement.dataset.originalPhotoBase || assetBase).replace(/\/$/, "");
 // A code-only review can reuse the site's already-published photographs.
@@ -77,8 +76,6 @@ const sheet = document.getElementById("contact-sheet");
 const lightbox = document.getElementById("lightbox");
 const lbImg = document.getElementById("lb-img");
 const lbCap = document.getElementById("lb-cap");
-const hoverPreview = document.getElementById("hover-preview");
-const hoverImg = document.getElementById("hover-preview-img");
 let photos = buildPhotos();
 let cards = [];
 const cardNodes = new Map();
@@ -97,143 +94,6 @@ let requestedIndex = null;
 let viewerReturn = null;
 let shuffleLabelTimer;
 let overviewReturn = null;
-let hoverCandidate = null;
-let hoverRequest = 0;
-let hoverTimer;
-let hoverCloseTimer;
-let keyboardNavigation = false;
-let hoverBlockedUntil = 0;
-let hoverOrigin = null;
-let hoverAnimation = null;
-let hoverClosing = false;
-
-function desktopPreviewEnabled() {
-  return finePointer.matches && !mobileView.matches;
-}
-function cancelHoverMotion() {
-  const animation = hoverAnimation;
-  hoverAnimation = null;
-  hoverClosing = false;
-  animation?.cancel();
-}
-function hoverBox() {
-  return { left:parseFloat(hoverPreview.style.left), top:parseFloat(hoverPreview.style.top),
-    width:parseFloat(hoverPreview.style.width), height:parseFloat(hoverPreview.style.height) };
-}
-function cardTransform(rect, box) {
-  // A single scale keeps the photograph's proportions intact throughout motion.
-  const scale = Math.max(.01, Math.min(rect.width / box.width, rect.height / box.height));
-  const x = rect.left + (rect.width - box.width * scale) / 2 - box.left;
-  const y = rect.top + (rect.height - box.height * scale) / 2 - box.top;
-  return `translate(${x}px, ${y}px) scale(${scale})`;
-}
-function hideHoverPreview({ animate = false } = {}) {
-  clearTimeout(hoverTimer);
-  clearTimeout(hoverCloseTimer);
-  hoverRequest++;
-  hoverCandidate = null;
-  if (animate && !hoverPreview.hidden && hoverOrigin?.isConnected && !reducedMotion.matches && typeof hoverPreview.animate === "function") {
-    const current = hoverPreview.getBoundingClientRect();
-    const origin = hoverOrigin.getBoundingClientRect();
-    const box = hoverBox();
-    cancelHoverMotion();
-    hoverClosing = true;
-    const animation = hoverPreview.animate([
-      { transform:cardTransform(current, box) },
-      { transform:cardTransform(origin, box) }
-    ], { duration:320, easing:"cubic-bezier(.3,0,.2,1)", fill:"forwards" });
-    hoverAnimation = animation;
-    Promise.resolve(animation.finished).then(() => {
-      if (hoverAnimation !== animation || !hoverClosing) return;
-      hoverPreview.hidden = true;
-      hoverOrigin = null;
-      cancelHoverMotion();
-    }).catch(() => {});
-    return;
-  }
-  cancelHoverMotion();
-  hoverPreview.hidden = true;
-  hoverOrigin = null;
-}
-function positionHoverPreview(origin, photo, rect = origin.getBoundingClientRect()) {
-  const viewportWidth = document.documentElement.clientWidth || window.innerWidth;
-  const viewportHeight = window.innerHeight;
-  const margin = 18;
-  const topEdge = Math.min(viewportHeight - 100, Math.max(margin, browse.querySelector(".browse-header").getBoundingClientRect().bottom + 12));
-  const availableHeight = viewportHeight - topEdge - margin - 46;
-  if (availableHeight < 100 || viewportWidth < 200) return false;
-  const imageHeight = Math.min(600, availableHeight);
-  const imageWidth = Math.max(1, Math.min(420, viewportWidth - margin * 2 - 16, imageHeight * photo.width / photo.height));
-  const width = imageWidth + 16;
-  const height = imageWidth * photo.height / photo.width + 46;
-  const left = Math.max(margin, Math.min(rect.left + rect.width / 2 - width / 2, viewportWidth - width - margin));
-  const top = Math.max(topEdge, Math.min(rect.top + rect.height / 2 - height / 2 - 8, viewportHeight - height - margin));
-  Object.assign(hoverPreview.style, { width:`${width}px`, height:`${height}px`, left:`${left}px`, top:`${top}px` });
-  return true;
-}
-function presentHoverPreview(origin, photo, index, source) {
-  // A sharper image can replace its cached thumbnail without replaying the pull.
-  if (!hoverPreview.hidden && hoverOrigin === origin && !hoverClosing) {
-    hoverImg.src = source;
-    return;
-  }
-  const originRect = origin.getBoundingClientRect();
-  const start = hoverClosing && hoverOrigin === origin ? hoverPreview.getBoundingClientRect() : originRect;
-  cancelHoverMotion();
-  if (hoverPreview.parentElement !== browse) browse.append(hoverPreview);
-  if (!positionHoverPreview(origin, photo, originRect)) return;
-  hoverOrigin = origin;
-  hoverImg.src = source;
-  hoverPreview.dataset.index = String(index);
-  hoverPreview.setAttribute("aria-label", `Jump to photograph in feed: ${photo.title}`);
-  hoverPreview.hidden = false;
-  if (!reducedMotion.matches && typeof hoverPreview.animate === "function") {
-    const animation = hoverPreview.animate([
-      { transform:cardTransform(start, hoverBox()) },
-      { transform:"translate(0px, 0px) scale(1)" }
-    ], { duration:480, easing:"cubic-bezier(.22,.65,.25,1)", fill:"none" });
-    hoverAnimation = animation;
-    Promise.resolve(animation.finished).then(() => {
-      if (hoverAnimation === animation) hoverAnimation = null;
-    }).catch(() => {});
-  }
-}
-function loadHoverDetail(origin, photo, index, request) {
-  const image = new Image();
-  image.src = photo.preview;
-  image.decode().then(() => {
-    if (request !== hoverRequest || hoverCandidate !== origin || !desktopPreviewEnabled() || !browse.open || lightbox.open) return;
-    presentHoverPreview(origin, photo, index, photo.preview);
-  }).catch(() => { /* The cached thumbnail remains usable if its larger copy fails. */ });
-}
-function scheduleHoverPreview(origin, delay = 70) {
-  if (!desktopPreviewEnabled() || !browse.open || lightbox.open || performance.now() < hoverBlockedUntil) return;
-  clearTimeout(hoverTimer);
-  clearTimeout(hoverCloseTimer);
-  if (hoverCandidate === origin && !hoverPreview.hidden) return;
-  hoverCandidate = origin;
-  const request = ++hoverRequest;
-  hoverTimer = setTimeout(() => {
-    const index = Number(origin.dataset.index);
-    const photo = photos[index];
-    if (!photo || hoverCandidate !== origin) return;
-    // Start with the already-decoded thumbnail instead of waiting on the network.
-    const thumb = origin.querySelector("img");
-    if (thumb.complete && thumb.naturalWidth) presentHoverPreview(origin, photo, index, thumb.currentSrc || thumb.src);
-    loadHoverDetail(origin, photo, index, request);
-  }, delay);
-}
-function deferHoverClose() {
-  clearTimeout(hoverTimer);
-  clearTimeout(hoverCloseTimer);
-  hoverRequest++;
-  if (hoverPreview.hidden) {
-    hoverCandidate = null;
-    return;
-  }
-  hoverCloseTimer = setTimeout(() => hideHoverPreview({ animate:true }), 90);
-}
-
 function saveState() {
   try { sessionStorage.setItem(STATE_KEY, JSON.stringify({ seed: shuffleSeed, rotation: shuffleRotation, file: photos[activeIndex]?.file })); }
   catch { /* Gallery navigation also works when browser storage is unavailable. */ }
@@ -466,7 +326,6 @@ function syncModalState() {
 }
 function openBrowse(trigger) {
   if (!photos.length) return;
-  hideHoverPreview();
   browseTrigger = trigger;
   browseSelection = null;
   if (sheetDirty) {
@@ -502,7 +361,6 @@ sheet.addEventListener("keydown", event => {
 });
 browse.addEventListener("close", () => {
   if (browse.open) return;
-  hideHoverPreview();
   syncModalState();
   if (browseSelection !== null) {
     scrollToPhoto(browseSelection, { focus: true, centerDesktop: true });
@@ -512,7 +370,6 @@ browse.addEventListener("close", () => {
 
 function openLightbox(index) {
   if (!photos.length) return;
-  hideHoverPreview();
   if (!lightbox.open) {
     viewerReturn = capturePosition(index);
     overviewReturn = browse.open ? { file: photos[index].file, scrollTop:sheet.scrollTop } : null;
@@ -578,67 +435,6 @@ lightbox.addEventListener("close", () => {
   overviewReturn = null;
 });
 
-document.addEventListener("keydown", event => {
-  if (["Tab", "ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown", "Home", "End"].includes(event.key)) keyboardNavigation = true;
-  if (event.key === "Escape") hideHoverPreview();
-}, true);
-document.addEventListener("pointerdown", () => { keyboardNavigation = false; }, true);
-sheet.addEventListener("pointerover", event => {
-  if (event.pointerType === "touch") return;
-  const button = event.target.closest(".thumbnail");
-  if (button && !button.contains(event.relatedTarget)) scheduleHoverPreview(button);
-});
-sheet.addEventListener("pointerout", event => {
-  const button = event.target.closest(".thumbnail");
-  if (!button || button.contains(event.relatedTarget) || hoverPreview.contains(event.relatedTarget)) return;
-  deferHoverClose();
-});
-sheet.addEventListener("pointermove", event => {
-  if (event.pointerType === "touch" || !hoverPreview.hidden) return;
-  const button = event.target.closest(".thumbnail");
-  // Scrolling can move a card under a stationary pointer while hover is blocked.
-  // A subsequent mouse movement should work without leaving and re-entering it.
-  if (button && hoverCandidate !== button) scheduleHoverPreview(button);
-});
-sheet.addEventListener("focusin", event => {
-  const button = event.target.closest(".thumbnail");
-  if (button && keyboardNavigation) scheduleHoverPreview(button, 0);
-});
-sheet.addEventListener("focusout", event => {
-  if (!hoverPreview.contains(event.relatedTarget)) deferHoverClose();
-});
-hoverPreview.addEventListener("pointerenter", () => {
-  clearTimeout(hoverCloseTimer);
-  if (hoverClosing && hoverOrigin) {
-    const origin = hoverOrigin;
-    const index = Number(hoverPreview.dataset.index);
-    hoverCandidate = origin;
-    const request = ++hoverRequest;
-    presentHoverPreview(origin, photos[index], index, hoverImg.src);
-    if (hoverImg.src !== photos[index].preview) loadHoverDetail(origin, photos[index], index, request);
-  }
-});
-hoverPreview.addEventListener("pointerleave", event => {
-  // A growing card can uncover its source near a clamped viewport edge.
-  // Treat the source and raised preview as one continuous hover area.
-  if (hoverOrigin?.contains(event.relatedTarget)) {
-    clearTimeout(hoverCloseTimer);
-    return;
-  }
-  deferHoverClose();
-});
-hoverPreview.addEventListener("click", () => {
-  if (hoverPreview.hidden) return;
-  browseSelection = Number(hoverPreview.dataset.index);
-  browse.close();
-});
-sheet.addEventListener("scroll", () => {
-  hideHoverPreview();
-  hoverBlockedUntil = performance.now() + 160;
-}, { passive:true });
-window.addEventListener("resize", hideHoverPreview);
-window.addEventListener("blur", hideHoverPreview);
-finePointer.addEventListener("change", hideHoverPreview);
 grid.addEventListener("click", event => {
   const card = event.target.closest(".card");
   if (card) openLightbox(Number(card.dataset.index));

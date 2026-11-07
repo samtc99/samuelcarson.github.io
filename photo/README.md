@@ -46,41 +46,20 @@ full-screen viewer; native dialogs handle Escape and focus containment.
 The gallery reserves card positions before decoding images. Downloads do not move
 other cards or reshuffle the collection. The viewer follows the same photo order.
 
-## Desktop previews
+## Desktop card hover
 
 A single Shuffle icon beside Browse jumps to a random photograph outside the
-current viewport when possible, centered below the sticky header. It avoids page-edge
-targets that cannot be centered. It preserves the balanced order and existing
-image nodes; the phone Shuffle control stays in the bottom navigation.
+current viewport when possible, centered below the sticky header.
 
-Masonry cards lift on mouse hover or keyboard focus while preserving their layout
-coordinates and full opacity. In Browse, a brief hover over a thumbnail opens a
-larger uncropped preview. That clickable preview sits inside the native dialog,
-outside the contact sheet's clipping area, and stays below the header controls.
+Browse thumbnails lift 12px on mouse hover or keyboard focus, without resizing
+or moving neighboring cards. The existing cached thumbnail stays visible and
+opaque; hovering starts no detail-image downloads or decodes. Cards keep their
+border and isolated stacking so the raised card cleanly covers those behind it.
+Reduced-motion preferences disable the transition.
 
-Clicking either a desktop thumbnail or its raised preview closes Browse and
-centers and focuses the same photograph in the main feed. Touch/mobile thumbnail
-taps retain their jump-to-deck behavior. Clicking a photograph in the main feed
-still opens the original viewer.
-
-The page declares a dark color scheme and matching theme color, with an explicit
-root background for Safari's page surroundings. On mobile, the solid header and
-bottom controls are sticky at their respective viewport edges so Safari can use
-these surfaces for its browser tint. An early inline background avoids sampling
-a white page before the stylesheet arrives. Safari controls toolbar rendering;
-its translucent address and navigation controls cannot be fully restyled by a page.
-
-Hover requests are canceled on exit, scroll, resize, blur, or viewer entry. A late
-image decode cannot reopen an old card. Very short windows omit the raised
-preview rather than covering controls. Reduced-motion settings disable the lift
-animation; the image and its solid backing stay fully opaque throughout.
-
-The raised card animates from its source thumbnail's real bounds using one
-uniform scale and translation (480ms eased pull, 320ms return). A cached thumbnail
-can start the pull before the larger image is decoded; that image swaps in
-without replaying the animation. Reentering a returning card resumes from its
-current visual position. Lifecycle changes cancel motion immediately. Browsers
-without Web Animations keep the static preview fallback.
+Clicking a thumbnail closes Browse and centers/focuses its photograph in the
+main feed. Clicking the feed photograph opens the original full-size viewer.
+Mobile keeps its native document scrolling and thumbnail-to-feed navigation.
 
 ## Review without publishing
 
