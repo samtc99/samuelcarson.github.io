@@ -51,6 +51,10 @@ dialog::backdrop { background:rgba(0,0,0,.82); }
 .contact-sheet { display:grid; grid-template-columns:repeat(6,minmax(0,1fr)); align-content:start; gap:10px; min-height:0; overflow-y:auto; padding:24px 24px max(24px,env(safe-area-inset-bottom)); overscroll-behavior:contain; }
 .thumbnail { position:relative; isolation:isolate; display:block; width:100%; padding:0; aspect-ratio:3/4; overflow:hidden; border:1px solid rgba(0,0,0,.3); border-radius:8px; background:var(--bg); box-shadow:0 3px 12px rgba(0,0,0,.6); transition:transform .28s cubic-bezier(.22,.61,.36,1),box-shadow .28s ease-out; }
 .thumbnail img { display:block; width:100%; height:100%; object-fit:cover; }
+.expanded-card { position:fixed; z-index:40; display:flex; flex-direction:column; gap:0; margin:0; padding:8px; overflow:hidden; border:1px solid #747477; border-radius:14px; background:var(--bg); box-shadow:0 0 0 2px #101012,0 8px 16px #000b,0 28px 60px #000c; transform-origin:top left; cursor:zoom-in; }
+.expanded-card[hidden] { display:none; }
+.expanded-card img { display:block; flex:1; width:100%; min-height:0; object-fit:contain; border-radius:8px; background:var(--bg); }
+.expanded-card span { flex:none; height:28px; padding-top:9px; color:var(--muted); text-align:center; font-size:11px; }
 .thumbnail[aria-current="true"] { outline:2px solid var(--accent); outline-offset:-2px; }
 .thumbnail[aria-current="true"]::after { content:""; position:absolute; left:8px; bottom:8px; width:6px; height:6px; border-radius:50%; background:var(--accent); box-shadow:0 0 0 3px var(--bg); }
 .lightbox { position:fixed; inset:0; width:100%; max-width:none; height:100%; max-height:none; margin:0; padding:70px 76px 30px; background:rgba(11,11,12,.98); }
@@ -151,6 +155,10 @@ dialog::backdrop { background:rgba(0,0,0,.82); }
       <button id="browse-close" class="icon-button" type="button" aria-label="Close photo browser"><svg class="icon" aria-hidden="true"><use href="#icon-close"/></svg></button>
     </header>
     <div id="contact-sheet" class="contact-sheet"></div>
+    <button id="expanded-card" class="expanded-card" type="button" hidden aria-haspopup="dialog" aria-controls="lightbox">
+      <img id="expanded-img" alt="" decoding="async" />
+      <span>Click to open carousel</span>
+    </button>
   </dialog>
   <dialog id="lightbox" class="lightbox" aria-label="Full-screen photograph">
     <button class="icon-button lb-close" type="button" aria-label="Close full-screen photograph"><svg class="icon" aria-hidden="true"><use href="#icon-close"/></svg></button>
@@ -343,6 +351,7 @@ function escapeHTML(value) {
   return String(value).replace(/[&<>"']/g, char => ({ "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;", "'":"&#39;" })[char]);
 }
 
+const finePointer = matchMedia("(hover: hover) and (pointer: fine)");
 const grid = document.getElementById("grid");
 const counter = document.getElementById("photo-count");
 const status = document.getElementById("gallery-status");
@@ -369,6 +378,74 @@ let requestedIndex = null;
 let viewerReturn = null;
 let shuffleLabelTimer;
 let overviewReturn = null;
+const expandedCard = document.getElementById("expanded-card");
+const expandedImg = document.getElementById("expanded-img");
+let expandedOrigin = null;
+let expandedRequest = 0;
+let expandedMotion = null;
+function hideExpandedCard({ focus = false } = {}) {
+  const origin = expandedOrigin;
+  expandedRequest++;
+  expandedMotion?.cancel();
+  expandedMotion = null;
+  expandedCard.hidden = true;
+  expandedOrigin = null;
+  if (origin) origin.setAttribute("aria-expanded", "false");
+  if (focus && origin?.isConnected) origin.focus({ preventScroll:true });
+}
+function expandCard(origin) {
+  hideExpandedCard();
+  const index = Number(origin.dataset.index), photo = photos[index];
+  const rect = origin.getBoundingClientRect();
+  const margin = 18;
+  const topEdge = Math.max(margin, browse.querySelector(".browse-header").getBoundingClientRect().bottom + 12);
+  const available = window.innerHeight - topEdge - margin - 46;
+  if (available < 80) { openLightbox(index); return; }
+  const width = Math.min(420, window.innerWidth - margin * 2 - 16, available * photo.width / photo.height) + 16;
+  const height = (width - 16) * photo.height / photo.width + 46;
+  const left = Math.max(margin, Math.min(rect.left + rect.width / 2 - width / 2, window.innerWidth - width - margin));
+  const top = Math.max(topEdge, Math.min(rect.top + rect.height / 2 - height / 2, window.innerHeight - height - margin));
+  Object.assign(expandedCard.style, {width:`${width}px`,height:`${height}px`,left:`${left}px`,top:`${top}px`});
+  expandedOrigin = origin;
+  expandedCard.dataset.index = String(index);
+  expandedCard.setAttribute("aria-label", `Open photograph carousel: ${photo.title}`);
+  origin.setAttribute("aria-expanded", "true");
+  const thumb = origin.querySelector("img");
+  expandedImg.src = thumb.currentSrc || thumb.src;
+  expandedImg.alt = photo.alt;
+  expandedCard.hidden = false;
+  if (!reducedMotion.matches && typeof expandedCard.animate === "function") {
+    const scale = Math.min(rect.width / width, rect.height / height);
+    const x = rect.left + rect.width / 2 - width * scale / 2 - left;
+    const y = rect.top + rect.height / 2 - height * scale / 2 - top;
+    expandedMotion = expandedCard.animate([
+      {transform:`translate(${x}px, ${y}px) scale(${scale})`},
+      {transform:"translate(0px, 0px) scale(1)"}
+    ], {duration:440,easing:"cubic-bezier(.22,.65,.25,1)"});
+  }
+  expandedCard.focus({preventScroll:true});
+  // Detail loading starts on the first click, never on hover.
+  const request = ++expandedRequest;
+  const detail = new Image();
+  detail.src = photo.preview;
+  detail.decode().then(() => {
+    if (expandedRequest === request && !expandedCard.hidden && expandedOrigin === origin) expandedImg.src = photo.preview;
+  }).catch(() => { /* Keep the cached thumbnail usable if detail loading fails. */ });
+}
+expandedCard.addEventListener("click", () => openLightbox(Number(expandedCard.dataset.index)));
+sheet.addEventListener("scroll", () => hideExpandedCard(), {passive:true});
+window.addEventListener("resize", () => hideExpandedCard());
+window.addEventListener("blur", () => hideExpandedCard());
+finePointer.addEventListener("change", () => hideExpandedCard());
+browse.addEventListener("click", event => {
+  if (!event.target.closest(".thumbnail") && !expandedCard.contains(event.target)) hideExpandedCard();
+});
+browse.addEventListener("keydown", event => {
+  if (event.key === "Escape" && !expandedCard.hidden) {
+    event.preventDefault();event.stopPropagation();hideExpandedCard({focus:true});
+  }
+});
+
 function saveState() {
   try { sessionStorage.setItem(STATE_KEY, JSON.stringify({ seed: shuffleSeed, rotation: shuffleRotation, file: photos[activeIndex]?.file })); }
   catch { /* Gallery navigation also works when browser storage is unavailable. */ }
@@ -601,6 +678,7 @@ function syncModalState() {
 }
 function openBrowse(trigger) {
   if (!photos.length) return;
+  hideExpandedCard();
   browseTrigger = trigger;
   browseSelection = null;
   if (sheetDirty) {
@@ -621,6 +699,7 @@ document.getElementById("browse-close").addEventListener("click", () => browse.c
 sheet.addEventListener("click", event => {
   const button = event.target.closest(".thumbnail");
   if (!button) return;
+  if (finePointer.matches && !mobileView.matches) { expandCard(button); return; }
   browseSelection = Number(button.dataset.index);
   browse.close();
 });
@@ -636,6 +715,7 @@ sheet.addEventListener("keydown", event => {
 });
 browse.addEventListener("close", () => {
   if (browse.open) return;
+  hideExpandedCard();
   syncModalState();
   if (browseSelection !== null) {
     scrollToPhoto(browseSelection, { focus: true, centerDesktop: true });
@@ -645,6 +725,7 @@ browse.addEventListener("close", () => {
 
 function openLightbox(index) {
   if (!photos.length) return;
+  hideExpandedCard();
   if (!lightbox.open) {
     viewerReturn = capturePosition(index);
     overviewReturn = browse.open ? { file: photos[index].file, scrollTop:sheet.scrollTop } : null;

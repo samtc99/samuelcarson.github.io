@@ -68,6 +68,7 @@ function escapeHTML(value) {
   return String(value).replace(/[&<>"']/g, char => ({ "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;", "'":"&#39;" })[char]);
 }
 
+const finePointer = matchMedia("(hover: hover) and (pointer: fine)");
 const grid = document.getElementById("grid");
 const counter = document.getElementById("photo-count");
 const status = document.getElementById("gallery-status");
@@ -94,6 +95,74 @@ let requestedIndex = null;
 let viewerReturn = null;
 let shuffleLabelTimer;
 let overviewReturn = null;
+const expandedCard = document.getElementById("expanded-card");
+const expandedImg = document.getElementById("expanded-img");
+let expandedOrigin = null;
+let expandedRequest = 0;
+let expandedMotion = null;
+function hideExpandedCard({ focus = false } = {}) {
+  const origin = expandedOrigin;
+  expandedRequest++;
+  expandedMotion?.cancel();
+  expandedMotion = null;
+  expandedCard.hidden = true;
+  expandedOrigin = null;
+  if (origin) origin.setAttribute("aria-expanded", "false");
+  if (focus && origin?.isConnected) origin.focus({ preventScroll:true });
+}
+function expandCard(origin) {
+  hideExpandedCard();
+  const index = Number(origin.dataset.index), photo = photos[index];
+  const rect = origin.getBoundingClientRect();
+  const margin = 18;
+  const topEdge = Math.max(margin, browse.querySelector(".browse-header").getBoundingClientRect().bottom + 12);
+  const available = window.innerHeight - topEdge - margin - 46;
+  if (available < 80) { openLightbox(index); return; }
+  const width = Math.min(420, window.innerWidth - margin * 2 - 16, available * photo.width / photo.height) + 16;
+  const height = (width - 16) * photo.height / photo.width + 46;
+  const left = Math.max(margin, Math.min(rect.left + rect.width / 2 - width / 2, window.innerWidth - width - margin));
+  const top = Math.max(topEdge, Math.min(rect.top + rect.height / 2 - height / 2, window.innerHeight - height - margin));
+  Object.assign(expandedCard.style, {width:`${width}px`,height:`${height}px`,left:`${left}px`,top:`${top}px`});
+  expandedOrigin = origin;
+  expandedCard.dataset.index = String(index);
+  expandedCard.setAttribute("aria-label", `Open photograph carousel: ${photo.title}`);
+  origin.setAttribute("aria-expanded", "true");
+  const thumb = origin.querySelector("img");
+  expandedImg.src = thumb.currentSrc || thumb.src;
+  expandedImg.alt = photo.alt;
+  expandedCard.hidden = false;
+  if (!reducedMotion.matches && typeof expandedCard.animate === "function") {
+    const scale = Math.min(rect.width / width, rect.height / height);
+    const x = rect.left + rect.width / 2 - width * scale / 2 - left;
+    const y = rect.top + rect.height / 2 - height * scale / 2 - top;
+    expandedMotion = expandedCard.animate([
+      {transform:`translate(${x}px, ${y}px) scale(${scale})`},
+      {transform:"translate(0px, 0px) scale(1)"}
+    ], {duration:440,easing:"cubic-bezier(.22,.65,.25,1)"});
+  }
+  expandedCard.focus({preventScroll:true});
+  // Detail loading starts on the first click, never on hover.
+  const request = ++expandedRequest;
+  const detail = new Image();
+  detail.src = photo.preview;
+  detail.decode().then(() => {
+    if (expandedRequest === request && !expandedCard.hidden && expandedOrigin === origin) expandedImg.src = photo.preview;
+  }).catch(() => { /* Keep the cached thumbnail usable if detail loading fails. */ });
+}
+expandedCard.addEventListener("click", () => openLightbox(Number(expandedCard.dataset.index)));
+sheet.addEventListener("scroll", () => hideExpandedCard(), {passive:true});
+window.addEventListener("resize", () => hideExpandedCard());
+window.addEventListener("blur", () => hideExpandedCard());
+finePointer.addEventListener("change", () => hideExpandedCard());
+browse.addEventListener("click", event => {
+  if (!event.target.closest(".thumbnail") && !expandedCard.contains(event.target)) hideExpandedCard();
+});
+browse.addEventListener("keydown", event => {
+  if (event.key === "Escape" && !expandedCard.hidden) {
+    event.preventDefault();event.stopPropagation();hideExpandedCard({focus:true});
+  }
+});
+
 function saveState() {
   try { sessionStorage.setItem(STATE_KEY, JSON.stringify({ seed: shuffleSeed, rotation: shuffleRotation, file: photos[activeIndex]?.file })); }
   catch { /* Gallery navigation also works when browser storage is unavailable. */ }
@@ -326,6 +395,7 @@ function syncModalState() {
 }
 function openBrowse(trigger) {
   if (!photos.length) return;
+  hideExpandedCard();
   browseTrigger = trigger;
   browseSelection = null;
   if (sheetDirty) {
@@ -346,6 +416,7 @@ document.getElementById("browse-close").addEventListener("click", () => browse.c
 sheet.addEventListener("click", event => {
   const button = event.target.closest(".thumbnail");
   if (!button) return;
+  if (finePointer.matches && !mobileView.matches) { expandCard(button); return; }
   browseSelection = Number(button.dataset.index);
   browse.close();
 });
@@ -361,6 +432,7 @@ sheet.addEventListener("keydown", event => {
 });
 browse.addEventListener("close", () => {
   if (browse.open) return;
+  hideExpandedCard();
   syncModalState();
   if (browseSelection !== null) {
     scrollToPhoto(browseSelection, { focus: true, centerDesktop: true });
@@ -370,6 +442,7 @@ browse.addEventListener("close", () => {
 
 function openLightbox(index) {
   if (!photos.length) return;
+  hideExpandedCard();
   if (!lightbox.open) {
     viewerReturn = capturePosition(index);
     overviewReturn = browse.open ? { file: photos[index].file, scrollTop:sheet.scrollTop } : null;

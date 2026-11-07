@@ -1,21 +1,24 @@
-# Lightweight desktop card hover — review before publishing
+# Three-step card interaction — review before publishing
 
-Open the preview link in the draft pull request. On desktop, open Browse and
-hover or keyboard-focus a thumbnail. It rises 20px out of the deck, keeping its
-size, image and opacity. No detail photos are downloaded or decoded on hover.
-Click to return to that photograph in the main feed; click the feed photo to
-open the original viewer. Reduced motion disables the lift transition.
+Desktop Browse:
 
-The native mobile scrolling and refined thumbnail borders are preserved.
+1. Hover or focus: peek the card up 20px, preserving stack order and size.
+2. Click: pull it fully out into an uncropped preview, using its thumbnail
+   immediately and loading a sharper copy only after the click.
+3. Click the expanded card: open the original photograph carousel.
+
+Escape dismisses an expanded card without closing Browse. Closing the carousel
+returns to the selected thumbnail. Scrolling, resizing, blur or selecting another
+card cancels stale preview work. Reduced motion disables the pull transition.
+Mobile retains native document scrolling and thumbnail-to-feed navigation.
+
+Validation: 42 DOM/navigation checks, plus Chromium checks for hover geometry,
+stack occlusion, no hover detail requests, the two-click expansion/carousel flow,
+Escape, reduced motion and retained mobile navigation. Screenshot inspected.
 Production remains unchanged until approval.
 
-Rebuild the standalone preview:
+Rebuild:
 
 ```sh
 python3 photo/tools/build-review.py --photo-base https://samtc.me/photo --renditions
 ```
-
-Validation: 41 DOM/navigation checks, including no hover decodes and retained
-thumbnail sources. The retired expanding-preview animation tests were removed
-with that feature. Browser checks separately measure lift distance, stable
-size/neighbors, no detail-image requests and mobile navigation.
