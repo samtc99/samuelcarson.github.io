@@ -44,10 +44,10 @@ dialog { color:var(--fg); border:0; }
 dialog::backdrop { background:rgba(0,0,0,.82); }
 .browse-dialog { position:fixed; inset:0; width:100%; max-width:none; height:100%; max-height:none; margin:0; padding:0; background:var(--bg); overscroll-behavior:contain; }
 .browse-dialog[open] { display:flex; flex-direction:column; }
-.browse-header { display:flex; justify-content:space-between; flex-shrink:0; align-items:flex-start; gap:16px; padding:max(26px,env(safe-area-inset-top)) max(24px,env(safe-area-inset-right)) 24px max(24px,env(safe-area-inset-left)); border-bottom:1px solid rgba(255,255,255,.07); }
-.eyebrow { margin:0 0 16px; font:500 14px "Playfair Display",Georgia,serif; color:var(--muted); }
-.browse-header h1 { margin:0; font:500 clamp(25px,4vw,34px) "Playfair Display",Georgia,serif; }
-.browse-count { margin:9px 0 0; font-size:11px; letter-spacing:.06em; color:var(--muted); }
+.browse-header { display:flex; justify-content:space-between; flex-shrink:0; align-items:center; gap:16px; min-height:68px; padding:max(12px,env(safe-area-inset-top)) max(18px,env(safe-area-inset-right)) 11px max(18px,env(safe-area-inset-left)); border-bottom:1px solid rgba(255,255,255,.07); }
+.browse-header>div { display:flex; flex-direction:column; gap:3px; min-width:0; }
+.browse-header h1 { margin:0; font:600 20px/24px "Playfair Display",Georgia,serif; letter-spacing:.02em; }
+.browse-count { white-space:nowrap; overflow:hidden; text-overflow:ellipsis; margin:0; font-size:11px; line-height:14px; letter-spacing:.02em; color:var(--muted); }
 .contact-sheet { display:grid; grid-template-columns:repeat(6,minmax(0,1fr)); align-content:start; gap:10px; min-height:0; overflow-y:auto; padding:24px 24px max(24px,env(safe-area-inset-bottom)); overscroll-behavior:contain; }
 .thumbnail { position:relative; isolation:isolate; display:block; width:100%; padding:0; aspect-ratio:3/4; overflow:hidden; border:1px solid rgba(0,0,0,.3); border-radius:8px; background:var(--bg); box-shadow:0 3px 12px rgba(0,0,0,.6); transition:transform .28s cubic-bezier(.22,.61,.36,1),box-shadow .28s ease-out; }
 .thumbnail img { display:block; width:100%; height:100%; object-fit:cover; }
@@ -102,7 +102,6 @@ dialog::backdrop { background:rgba(0,0,0,.82); }
   .text-button:last-child { justify-self:end; }
   .text-button .icon { width:17px; height:17px; }
   .contact-sheet { grid-template-columns:repeat(3,minmax(0,1fr)); padding:18px 18px max(18px,env(safe-area-inset-bottom)); gap:8px; }
-  .browse-header { padding-left:18px; padding-right:18px; padding-bottom:18px; }
   .lightbox { padding:max(68px,env(safe-area-inset-top)) 12px max(28px,env(safe-area-inset-bottom)); }
   .lb-prev,.lb-next { top:auto; bottom:max(12px,env(safe-area-inset-bottom)); transform:none; }
   .lb-figure { padding-bottom:52px; }
@@ -150,7 +149,7 @@ dialog::backdrop { background:rgba(0,0,0,.82); }
   <p id="gallery-status" class="sr-only" role="status" aria-live="polite"></p>
   <dialog id="browse" class="browse-dialog" aria-labelledby="browse-title">
     <header class="browse-header">
-      <div><p class="eyebrow">Samuel Carson</p><h1 id="browse-title">All photographs</h1><p id="browse-count" class="browse-count"></p></div>
+      <div><h1 id="browse-title">All photographs</h1><p id="browse-count" class="browse-count"></p></div>
       <button id="browse-close" class="icon-button" type="button" aria-label="Close photo browser"><svg class="icon" aria-hidden="true"><use href="#icon-close"/></svg></button>
     </header>
     <div id="contact-sheet" class="contact-sheet"></div>

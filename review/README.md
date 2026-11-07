@@ -48,3 +48,12 @@ Escape and changing selection cancel safely without stale completion callbacks.
 Validation: 47 DOM/navigation checks plus Chromium intermediate-frame checks for
 the reversed pull, moving shadow and final lowering transition. The final slot,
 card count, dimensions, image and mobile behavior remain intact.
+
+## Compact Browse header
+
+The overview now matches the main feed's 68px header height, with the title at
+20px, a compact count line and a full 44px close target. Remove the repeated
+Samuel Carson eyebrow and excess spacing. On narrow screens the helper text
+truncates rather than making the header taller. Safe-area padding is retained.
+Chromium measured equal feed/Browse heights at 1440px, 390px and 320px widths;
+card extraction/return, reduced motion and mobile navigation checks also passed.
