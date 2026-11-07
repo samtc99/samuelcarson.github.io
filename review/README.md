@@ -57,3 +57,10 @@ Samuel Carson eyebrow and excess spacing. On narrow screens the helper text
 truncates rather than making the header taller. Safe-area padding is retained.
 Chromium measured equal feed/Browse heights at 1440px, 390px and 320px widths;
 card extraction/return, reduced motion and mobile navigation checks also passed.
+
+## Sharp cards before extraction
+
+Every card now starts with its optimized higher-resolution preview, including
+cards sitting in the deck. Lazy loading and async decoding remain enabled.
+Extraction reuses the loaded image instead of requesting it again. Card sizing,
+stack order and all three click animations remain unchanged.

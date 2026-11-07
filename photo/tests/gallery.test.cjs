@@ -522,7 +522,7 @@ test('optimized review serves small assets separately while keeping full-size or
     assert.equal(source.type, 'image/webp');
   }
   f.d.querySelector('.browse-trigger').click();
-  assert.ok([...f.d.querySelectorAll('.thumbnail img')].every(image => image.src.includes('/feat/mobile-photo-deck/photo/thumbs/') && image.src.endsWith('.webp')));
+  assert.ok([...f.d.querySelectorAll('.thumbnail img')].every(image => image.src.includes('/feat/mobile-photo-deck/photo/previews/') && image.src.endsWith('.webp')));
 });
 
 test('data-saving mode loads the chosen photo without eagerly warming offscreen neighbors', async t => {
@@ -742,4 +742,13 @@ test('a cancelled reverse cannot restore an old card over a newer selection', as
  thumbs[9].click();assert.equal(sheet.children[7],thumbs[7]);assert.equal(thumbs[9].classList.contains('is-pulled'),true);
  motions[0].finishReverse();await tick();
  assert.equal(thumbs[9].classList.contains('is-pulled'),true);assert.equal(sheet.children.length,106);assert.deepEqual(f.errors,[]);
+});
+
+test('every overview card starts with the optimized higher-resolution source and retains lazy loading', async t => {
+ const f=fixture({width:1440,height:900,coarse:false});t.after(f.close);await tick();
+ const thumbs=openDesktopOverview(f);
+ assert.equal(thumbs.length,106);
+ for(const card of thumbs){const image=card.querySelector('img');assert.ok(image.src.includes('/previews/'));assert.equal(image.loading,'lazy');assert.equal(image.getAttribute('decoding'),'async');}
+ const card=thumbs[7],image=card.querySelector('img');f.load(image);const src=image.src;f.hold(true);
+ card.click();card.click();assert.equal(f.pending.length,0);assert.equal(image.src,src);assert.deepEqual(f.errors,[]);
 });

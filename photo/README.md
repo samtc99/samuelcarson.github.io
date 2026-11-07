@@ -116,3 +116,11 @@ The user confirmed this version allows Safari's bars to retract on iOS 27.2.
 The locked-root contained scroller remains covered by regression tests but is
 not enabled in the gallery entry page. The approved fine dark photo edge and
 raised-card shadow are included.
+
+## Overview image quality
+
+All overview cards use the optimized higher-resolution preview from their first
+render, rather than the small contact-sheet thumbnail. Lazy loading and async
+decoding are retained. The card geometry and overlapping layout remain unchanged.
+Extraction reuses an already decoded image; it only retries decoding if needed.
+Missing previews retain the existing fallback to the original photograph.

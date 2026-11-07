@@ -146,8 +146,12 @@ function extractCard(card) {
       if (now != null) state.motion.startTime = state.maskMotion.startTime = now;
     }
   }
-  // Only the second click requests detail; keep the cached thumbnail until decoded.
+  // The overview already uses optimized detail; reuse decoded pixels when ready.
   const image = surface.querySelector("img");
+  if (image.src === new URL(photos[Number(card.dataset.index)].preview, document.baseURI).href && image.complete && image.naturalWidth) {
+    card.focus({preventScroll:true});
+    return;
+  }
   const detail = new Image();
   detail.decoding = "async";
   detail.fetchPriority = "high";
@@ -464,7 +468,7 @@ function openBrowse(trigger) {
   browseTrigger = trigger;
   browseSelection = null;
   if (sheetDirty) {
-    sheet.innerHTML = photos.map((photo, i) => `<button class="thumbnail" type="button" data-index="${i}" aria-label="Jump to photo ${i + 1}: ${escapeHTML(photo.title)}"><img src="${escapeHTML(photo.thumb)}" alt="" width="300" height="400" loading="lazy" decoding="async" fetchpriority="low" /></button>`).join("");
+    sheet.innerHTML = photos.map((photo, i) => `<button class="thumbnail" type="button" data-index="${i}" aria-label="Jump to photo ${i + 1}: ${escapeHTML(photo.title)}"><img src="${escapeHTML(photo.preview)}" alt="" width="300" height="400" loading="lazy" decoding="async" fetchpriority="low" /></button>`).join("");
     sheet.querySelectorAll("img").forEach((img, i) => img.addEventListener("error", () => { img.src = photos[i].src; }, { once: true }));
     sheetDirty = false;
   }
