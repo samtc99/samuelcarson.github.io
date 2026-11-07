@@ -51,10 +51,11 @@ other cards or reshuffle the collection. The viewer follows the same photo order
 A single Shuffle icon beside Browse jumps to a random photograph outside the
 current viewport when possible, centered below the sticky header.
 
-Browse thumbnails lift 12px on mouse hover or keyboard focus, without resizing
+Browse thumbnails lift 20px on mouse hover or keyboard focus, without resizing
 or moving neighboring cards. The existing cached thumbnail stays visible and
 opaque; hovering starts no detail-image downloads or decodes. Cards keep their
-border and isolated stacking so the raised card cleanly covers those behind it.
+border and original isolated stacking order, so cards in front continue to cover
+the lifted card. Only its top edge peeks farther out.
 Reduced-motion preferences disable the transition.
 
 Clicking a thumbnail closes Browse and centers/focuses its photograph in the
