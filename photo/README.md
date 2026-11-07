@@ -1,5 +1,12 @@
 # Photography gallery
 
+The header's Play/Pause control scrolls the main feed at 10 pixels per second.
+Desktop starts automatically; mobile requires Play. Wheel, touch, pointer,
+keyboard and click interaction, dialogs, resizing, and leaving the tab pause it.
+Playback only resumes with Play and stops at the bottom without looping.
+Reduced-motion preferences disable playback. Animation uses a fractional
+destination and frame timestamps, with a 50ms delta cap to prevent catch-up jumps.
+
 Photos are mixed into a stable order using `shoot` and optional `look` groups in
 `photos.js`. A large shoot is spread throughout the gallery, and its outfits or
 poses are mixed separately. Reloading the page keeps the same order.

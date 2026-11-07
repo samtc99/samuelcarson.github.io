@@ -10,6 +10,42 @@ const app = fs.readFileSync(path.join(root, 'app.js'), 'utf8');
 const tick = () => new Promise(resolve => setTimeout(resolve, 45));
 const hoverTick = () => new Promise(resolve => setTimeout(resolve, 165));
 
+test('auto-scroll accumulates fractions at 10px/sec and caps stalled frames', async t => {
+  const f = fixture({ documentDeck:true }); t.after(f.close); await tick();
+  f.evaluate('startAutoScroll(); cancelAnimationFrame(autoScrollFrame); autoScrollTick(0); cancelAnimationFrame(autoScrollFrame);');
+  for (let time = 10; time <= 1000; time += 10) {
+    f.evaluate(`autoScrollTick(${time}); cancelAnimationFrame(autoScrollFrame);`);
+  }
+  assert.ok(Math.abs(f.w.scrollY - 10) < .001);
+  f.evaluate('autoScrollTick(6000); cancelAnimationFrame(autoScrollFrame);');
+  assert.ok(Math.abs(f.w.scrollY - 10.5) < .001);
+});
+
+test('mobile starts paused; interaction pauses playback without automatic restart', async t => {
+  const f = fixture({ documentDeck:true }); t.after(f.close); await tick();
+  const button = f.d.getElementById('auto-scroll');
+  assert.equal(button.getAttribute('aria-pressed'), 'false');
+  for (const type of ['wheel','touchstart','pointerdown','keydown','click']) {
+    button.click();
+    assert.equal(button.getAttribute('aria-pressed'), 'true');
+    f.grid.dispatchEvent(new f.w.Event(type, { bubbles:true }));
+    assert.equal(button.getAttribute('aria-pressed'), 'false');
+  }
+  await tick();
+  assert.equal(button.getAttribute('aria-pressed'), 'false');
+});
+
+test('auto-scroll respects reduced motion and stops at the end', async t => {
+  const reduced = fixture({ reduced:true, documentDeck:true }); t.after(reduced.close); await tick();
+  assert.equal(reduced.d.getElementById('auto-scroll').disabled, true);
+  reduced.evaluate('startAutoScroll()');
+  assert.equal(reduced.evaluate('autoScrollPlaying'), false);
+  const f = fixture({ documentDeck:true }); t.after(f.close); await tick();
+  f.evaluate('startAutoScroll(); cancelAnimationFrame(autoScrollFrame); autoScrollPosition = autoScrollEnd - .1; autoScrollTime = 0; autoScrollTick(50)');
+  assert.equal(f.evaluate('autoScrollPlaying'), false);
+  assert.equal(f.w.scrollY, f.evaluate('autoScrollEnd'));
+});
+
 // DOM/state tests, not a substitute for reviewing native scrolling on a phone.
 function fixture({ width = 390, height = 844, coarse = true, saved, data = collection, blockedStorage = false, reduced = false, originals = false, assetBase, originalBase, saveData = false, documentDeck = false } = {}) {
   const errors = [];
@@ -116,8 +152,8 @@ function fixture({ width = 390, height = 844, coarse = true, saved, data = colle
   };
   if (saved) w.sessionStorage.setItem('samuel-carson:photo-deck:v1', JSON.stringify(saved));
   if (blockedStorage) Object.defineProperty(w, 'sessionStorage', { get() { throw new Error('Storage unavailable'); } });
-  w.eval(data + '\n' + app);
-  return { w, d, grid, errors, scrolls, pending, close:() => w.close(),
+  w.eval(data + '\n' + app + '\nwindow.testEvaluate = code => eval(code);');
+  return { w, d, grid, errors, scrolls, pending, evaluate:code => w.testEvaluate(code), close:() => w.close(),
     scrollTo(options) { grid.dispatchEvent(new w.Event('wheel')); grid.scrollTo(options); },
     async resizeObserved() { observers.forEach(callback => callback()); await tick(); },
     images:() => [...grid.querySelectorAll('img')],

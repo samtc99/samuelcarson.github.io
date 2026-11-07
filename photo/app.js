@@ -599,6 +599,7 @@ for (const type of ["wheel", "touchstart", "pointerdown", "keydown"]) {
 }
 
 function syncModalState() {
+  pauseAutoScroll();
   document.documentElement.classList.toggle("modal-open", browse.open || lightbox.open);
 }
 function rememberBrowse() {
@@ -811,9 +812,82 @@ document.querySelectorAll(".shuffle-trigger").forEach(button => button.addEventL
 
 new ResizeObserver(scheduleLayout).observe(grid);
 mobileView.addEventListener("change", scheduleLayout);
+
+// Keep a floating-point destination: adding tiny deltas to rounded scrollY
+// would otherwise stall at 10px/sec. Only native scrolling moves the feed.
+const autoScrollButton = document.getElementById("auto-scroll");
+let autoScrollFrame = 0;
+let autoScrollPlaying = false;
+let autoScrollTime = null;
+let autoScrollPosition = 0;
+let autoScrollEnd = 0;
+let autoScrollInterrupted = false;
+function syncAutoScrollButton() {
+  autoScrollButton.setAttribute("aria-pressed", String(autoScrollPlaying));
+  autoScrollButton.querySelector(".auto-scroll-label").textContent = autoScrollPlaying ? "Pause" : "Play";
+  autoScrollButton.firstElementChild.textContent = autoScrollPlaying ? "Ⅱ" : "▶";
+  autoScrollButton.disabled = reducedMotion.matches;
+  autoScrollButton.title = reducedMotion.matches ? "Auto-scroll is off for reduced motion" : "Slowly scroll through photographs";
+}
+function pauseAutoScroll() {
+  autoScrollInterrupted = true;
+  autoScrollPlaying = false;
+  cancelAnimationFrame(autoScrollFrame);
+  autoScrollFrame = 0;
+  autoScrollTime = null;
+  syncAutoScrollButton();
+}
+function autoScrollTick(time) {
+  autoScrollFrame = 0;
+  if (!autoScrollPlaying) return;
+  if (document.hidden || reducedMotion.matches || browse.open || lightbox.open) {
+    pauseAutoScroll();
+    return;
+  }
+  if (autoScrollTime !== null) {
+    // Never catch up after a stalled frame with a visible jump.
+    autoScrollPosition = Math.min(autoScrollEnd, autoScrollPosition + Math.min(50, Math.max(0, time - autoScrollTime)) * .01);
+    if (mobileView.matches && !documentDeck()) grid.scrollTo({ top:autoScrollPosition, behavior:"instant" });
+    else window.scrollTo({ top:autoScrollPosition, behavior:"instant" });
+  }
+  autoScrollTime = time;
+  if (autoScrollPosition >= autoScrollEnd) pauseAutoScroll();
+  else autoScrollFrame = requestAnimationFrame(autoScrollTick);
+}
+function startAutoScroll() {
+  if (autoScrollPlaying || reducedMotion.matches || document.hidden || browse.open || lightbox.open || !photos.length) return;
+  const contained = mobileView.matches && !documentDeck();
+  autoScrollPosition = contained ? grid.scrollTop : window.scrollY;
+  autoScrollEnd = contained ? grid.scrollHeight - grid.clientHeight : document.documentElement.scrollHeight - window.innerHeight;
+  if (autoScrollPosition >= autoScrollEnd - 1) return;
+  autoScrollPlaying = true;
+  autoScrollTime = null;
+  syncAutoScrollButton();
+  autoScrollFrame = requestAnimationFrame(autoScrollTick);
+}
+autoScrollButton.addEventListener("click", () => {
+  autoScrollInterrupted = true;
+  if (autoScrollPlaying) pauseAutoScroll();
+  else startAutoScroll();
+});
+for (const type of ["wheel", "touchstart", "pointerdown", "keydown", "click"]) {
+  document.addEventListener(type, event => {
+    // The toggle handles its own pointer and keyboard activation.
+    if (autoScrollButton.contains(event.target)) return;
+    pauseAutoScroll();
+  }, { capture:true, passive:true });
+}
+window.addEventListener("blur", pauseAutoScroll);
+window.addEventListener("pagehide", pauseAutoScroll);
+window.addEventListener("resize", pauseAutoScroll);
+document.addEventListener("visibilitychange", () => { if (document.hidden) pauseAutoScroll(); });
+reducedMotion.addEventListener("change", pauseAutoScroll);
+mobileView.addEventListener("change", pauseAutoScroll);
+syncAutoScrollButton();
 render();
 requestAnimationFrame(() => {
   layoutGallery();
   if (savedState.file && photos.some(photo => photo.file === savedState.file)) scrollToPhoto(activeIndex);
   updateScrollPosition();
+  if (!mobileView.matches && !autoScrollInterrupted) startAutoScroll();
 });
