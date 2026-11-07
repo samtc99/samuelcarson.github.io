@@ -1,11 +1,13 @@
 # Photography gallery
 
 The header's Play/Pause control scrolls the main feed at 10 pixels per second.
-Desktop starts automatically; mobile requires Play. Wheel, touch, pointer,
-keyboard and click interaction, dialogs, resizing, and leaving the tab pause it.
-Playback only resumes with Play and stops at the bottom without looping.
-Reduced-motion preferences disable playback. Animation uses a fractional
-destination and frame timestamps, with a 50ms delta cap to prevent catch-up jumps.
+Desktop starts automatically; mobile requires Play. Manual scrolling temporarily
+yields control, then resumes after 1.2 seconds without scrolling, including touch
+and trackpad momentum. It waits for fingers and pointer buttons to be released.
+Pause, dialogs, non-scrolling keys, leaving the tab, and reduced motion cancel
+automatic resumption. It stops at the bottom without looping. Animation uses a
+fractional destination and a subpixel compositor correction for native pixel
+rounding, with a 50ms delta cap to prevent catch-up jumps.
 
 Photos are mixed into a stable order using `shoot` and optional `look` groups in
 `photos.js`. A large shoot is spread throughout the gallery, and its outfits or

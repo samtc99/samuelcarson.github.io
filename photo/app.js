@@ -813,29 +813,57 @@ document.querySelectorAll(".shuffle-trigger").forEach(button => button.addEventL
 new ResizeObserver(scheduleLayout).observe(grid);
 mobileView.addEventListener("change", scheduleLayout);
 
-// Keep a floating-point destination: adding tiny deltas to rounded scrollY
-// would otherwise stall at 10px/sec. Only native scrolling moves the feed.
+// Native scroll positions may round to whole pixels. Carry their fractional
+// remainder in a composited transform so 10px/sec still moves on every frame.
 const autoScrollButton = document.getElementById("auto-scroll");
 let autoScrollFrame = 0;
 let autoScrollPlaying = false;
+let autoScrollEnabled = false;
+let autoScrollResumePending = false;
+let autoScrollResumeTimer = 0;
+let autoScrollPointerHeld = false;
+let autoScrollTouchHeld = false;
 let autoScrollTime = null;
 let autoScrollPosition = 0;
 let autoScrollEnd = 0;
 let autoScrollInterrupted = false;
 function syncAutoScrollButton() {
-  autoScrollButton.setAttribute("aria-pressed", String(autoScrollPlaying));
-  autoScrollButton.querySelector(".auto-scroll-label").textContent = autoScrollPlaying ? "Pause" : "Play";
-  autoScrollButton.firstElementChild.textContent = autoScrollPlaying ? "Ⅱ" : "▶";
+  autoScrollButton.setAttribute("aria-pressed", String(autoScrollEnabled));
+  autoScrollButton.querySelector(".auto-scroll-label").textContent = autoScrollEnabled ? "Pause" : "Play";
+  autoScrollButton.firstElementChild.textContent = autoScrollEnabled ? "Ⅱ" : "▶";
   autoScrollButton.disabled = reducedMotion.matches;
   autoScrollButton.title = reducedMotion.matches ? "Auto-scroll is off for reduced motion" : "Slowly scroll through photographs";
 }
-function pauseAutoScroll() {
+function pauseAutoScroll({ temporary = false } = {}) {
   autoScrollInterrupted = true;
+  clearTimeout(autoScrollResumeTimer);
+  autoScrollResumeTimer = 0;
+  autoScrollResumePending = temporary && autoScrollEnabled;
+  if (!temporary) {
+    autoScrollEnabled = false;
+    autoScrollPointerHeld = false;
+    autoScrollTouchHeld = false;
+  }
   autoScrollPlaying = false;
   cancelAnimationFrame(autoScrollFrame);
   autoScrollFrame = 0;
   autoScrollTime = null;
+  grid.style.transform = "";
+  grid.style.willChange = "";
   syncAutoScrollButton();
+}
+function scheduleAutoScrollResume() {
+  clearTimeout(autoScrollResumeTimer);
+  if (!autoScrollResumePending || !autoScrollEnabled || autoScrollPointerHeld || autoScrollTouchHeld) return;
+  autoScrollResumeTimer = setTimeout(() => {
+    autoScrollResumeTimer = 0;
+    if (autoScrollResumePending && autoScrollEnabled) startAutoScroll();
+  }, 1200);
+}
+function yieldAutoScroll() {
+  if (!autoScrollEnabled) return;
+  pauseAutoScroll({ temporary:true });
+  scheduleAutoScrollResume();
 }
 function autoScrollTick(time) {
   autoScrollFrame = 0;
@@ -847,8 +875,11 @@ function autoScrollTick(time) {
   if (autoScrollTime !== null) {
     // Never catch up after a stalled frame with a visible jump.
     autoScrollPosition = Math.min(autoScrollEnd, autoScrollPosition + Math.min(50, Math.max(0, time - autoScrollTime)) * .01);
-    if (mobileView.matches && !documentDeck()) grid.scrollTo({ top:autoScrollPosition, behavior:"instant" });
+    const contained = mobileView.matches && !documentDeck();
+    if (contained) grid.scrollTo({ top:autoScrollPosition, behavior:"instant" });
     else window.scrollTo({ top:autoScrollPosition, behavior:"instant" });
+    const actual = contained ? grid.scrollTop : window.scrollY;
+    grid.style.transform = `translate3d(0, ${actual - autoScrollPosition}px, 0)`;
   }
   autoScrollTime = time;
   if (autoScrollPosition >= autoScrollEnd) pauseAutoScroll();
@@ -859,27 +890,57 @@ function startAutoScroll() {
   const contained = mobileView.matches && !documentDeck();
   autoScrollPosition = contained ? grid.scrollTop : window.scrollY;
   autoScrollEnd = contained ? grid.scrollHeight - grid.clientHeight : document.documentElement.scrollHeight - window.innerHeight;
-  if (autoScrollPosition >= autoScrollEnd - 1) return;
+  if (autoScrollPosition >= autoScrollEnd - 1) { pauseAutoScroll(); return; }
+  clearTimeout(autoScrollResumeTimer);
+  autoScrollResumeTimer = 0;
+  autoScrollResumePending = false;
+  autoScrollEnabled = true;
   autoScrollPlaying = true;
   autoScrollTime = null;
+  grid.style.willChange = "transform";
   syncAutoScrollButton();
   autoScrollFrame = requestAnimationFrame(autoScrollTick);
 }
 autoScrollButton.addEventListener("click", () => {
   autoScrollInterrupted = true;
-  if (autoScrollPlaying) pauseAutoScroll();
+  if (autoScrollEnabled) pauseAutoScroll();
   else startAutoScroll();
 });
-for (const type of ["wheel", "touchstart", "pointerdown", "keydown", "click"]) {
+const autoScrollInputOptions = { capture:true, passive:true };
+document.addEventListener("wheel", yieldAutoScroll, autoScrollInputOptions);
+document.addEventListener("touchstart", event => {
+  if (autoScrollButton.contains(event.target)) return;
+  autoScrollTouchHeld = true;
+  yieldAutoScroll();
+}, autoScrollInputOptions);
+for (const type of ["touchend", "touchcancel"]) {
   document.addEventListener(type, event => {
-    // The toggle handles its own pointer and keyboard activation.
-    if (autoScrollButton.contains(event.target)) return;
-    pauseAutoScroll();
-  }, { capture:true, passive:true });
+    autoScrollTouchHeld = (event.touches?.length || 0) > 0;
+    scheduleAutoScrollResume();
+  }, autoScrollInputOptions);
 }
+document.addEventListener("pointerdown", event => {
+  if (autoScrollButton.contains(event.target)) return;
+  autoScrollPointerHeld = true;
+  yieldAutoScroll();
+}, autoScrollInputOptions);
+for (const type of ["pointerup", "pointercancel"]) {
+  document.addEventListener(type, () => {
+    autoScrollPointerHeld = false;
+    scheduleAutoScrollResume();
+  }, autoScrollInputOptions);
+}
+document.addEventListener("keydown", event => {
+  if (autoScrollButton.contains(event.target)) return;
+  if (["ArrowDown", "ArrowUp", "PageDown", "PageUp", "Home", "End", " "].includes(event.key)) yieldAutoScroll();
+  else pauseAutoScroll();
+}, autoScrollInputOptions);
+// Scroll events keep extending the quiet period through trackpad/touch momentum.
+window.addEventListener("scroll", scheduleAutoScrollResume, { passive:true });
+grid.addEventListener("scroll", scheduleAutoScrollResume, { passive:true });
 window.addEventListener("blur", pauseAutoScroll);
 window.addEventListener("pagehide", pauseAutoScroll);
-window.addEventListener("resize", pauseAutoScroll);
+window.addEventListener("resize", yieldAutoScroll);
 document.addEventListener("visibilitychange", () => { if (document.hidden) pauseAutoScroll(); });
 reducedMotion.addEventListener("change", pauseAutoScroll);
 mobileView.addEventListener("change", pauseAutoScroll);
