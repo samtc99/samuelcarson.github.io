@@ -858,7 +858,7 @@ function scheduleAutoScrollResume() {
   autoScrollResumeTimer = setTimeout(() => {
     autoScrollResumeTimer = 0;
     if (autoScrollResumePending && autoScrollEnabled) startAutoScroll();
-  }, 500);
+  }, 200);
 }
 function yieldAutoScroll() {
   if (!autoScrollEnabled) return;

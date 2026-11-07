@@ -2,7 +2,7 @@
 
 The header's Play/Pause control scrolls the main feed at 10 pixels per second.
 Desktop starts automatically; mobile requires Play. Manual scrolling temporarily
-yields control, then resumes after 0.5 seconds without scrolling, including touch
+yields control, then resumes after 0.2 seconds without scrolling, including touch
 and trackpad momentum. It waits for fingers and pointer buttons to be released.
 Pause, dialogs, non-scrolling keys, leaving the tab, and reduced motion cancel
 automatic resumption. It stops at the bottom without looping. Animation uses a
