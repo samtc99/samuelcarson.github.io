@@ -153,13 +153,13 @@ function extractCard(card) {
   detail.fetchPriority = "high";
   detail.src = photos[Number(card.dataset.index)].preview;
   detail.decode().then(() => {
-    if (extraction === state && card.isConnected) image.src = detail.src;
+    if (extraction === state && !state.returning && card.isConnected) image.src = detail.src;
   }).catch(() => { /* The thumbnail remains visible when detail loading fails. */ });
   card.focus({preventScroll:true});
 }
-function returnExtractedCard() {
-  if (!extraction) return;
-  const {card,placeholder,style,surface,motion,maskMotion} = extraction;
+function restoreExtractedCard(state, { slideBack = false, focus = false } = {}) {
+  if (extraction !== state) return;
+  const {card,placeholder,style,surface,motion,maskMotion} = state;
   extraction = null;
   motion?.cancel();
   maskMotion?.cancel();
@@ -167,11 +167,45 @@ function returnExtractedCard() {
   card.classList.remove("is-extracted");
   if (style === null) card.removeAttribute("style"); else card.setAttribute("style",style);
   card.setAttribute("aria-label", `Jump to photo ${Number(card.dataset.index)+1}: ${photos[Number(card.dataset.index)].title}`);
+  if (slideBack) {
+    // Rejoin the deck at the exact 80px-raised endpoint of the reverse pull.
+    // Commit that pose before allowing the original slide transition to run back.
+    card.style.transition = "none";
+    card.classList.add("is-pulled");
+  }
   placeholder.replaceWith(card);
+  if (slideBack) {
+    card.getBoundingClientRect();
+    if (style === null) card.removeAttribute("style"); else card.setAttribute("style",style);
+    if (pulledCard === card) pulledCard = null;
+    card.classList.remove("is-pulled");
+    card.setAttribute("aria-expanded", "false");
+  }
+  if (focus && card.isConnected) card.focus({preventScroll:true});
 }
-function clearPulledCard({ focus = false } = {}) {
+function returnExtractedCard({ animate = false, focus = false } = {}) {
+  if (!extraction) return false;
+  const state = extraction;
+  if (animate && !reducedMotion.matches && typeof state.motion?.reverse === "function") {
+    if (state.returning) return true;
+    state.returning = true;
+    // Reverse the actual animations, including an unfinished outward pull.
+    // This preserves the current position instead of constructing a new start pose.
+    const time = state.motion.currentTime;
+    state.motion.reverse();
+    state.maskMotion?.reverse();
+    if (state.maskMotion && time != null) state.maskMotion.currentTime = time;
+    Promise.resolve(state.motion.finished).then(() => {
+      if (extraction === state && state.returning) restoreExtractedCard(state, {slideBack:true,focus});
+    }).catch(() => { /* Lifecycle cancellation restores the card synchronously. */ });
+    return true;
+  }
+  restoreExtractedCard(state);
+  return false;
+}
+function clearPulledCard({ focus = false, animate = false } = {}) {
   const card = pulledCard;
-  returnExtractedCard();
+  if (returnExtractedCard({animate,focus})) return;
   pulledCard = null;
   if (!card) return;
   card.classList.remove("is-pulled");
@@ -185,9 +219,7 @@ finePointer.addEventListener("change", () => clearPulledCard());
 browse.addEventListener("click", event => {
   if (event.composedPath().includes(sheet)) return;
   if (event.target.closest(".is-extracted")) {
-    const card = pulledCard;
-    clearPulledCard();
-    card?.focus({preventScroll:true});
+    clearPulledCard({animate:true,focus:true});
   } else if (!event.target.closest(".thumbnail")) clearPulledCard();
 });
 browse.addEventListener("keydown", event => {

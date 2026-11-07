@@ -712,3 +712,34 @@ test('late or failed detail loads leave returned and newly extracted cards intac
  const secondImage=second.querySelector('img'),secondSrc=secondImage.src;f.pending[1].reject(new Error('offline'));await tick();
  assert.equal(secondImage.src,secondSrc);assert.equal(second.classList.contains('is-extracted'),true);assert.deepEqual(f.errors,[]);
 });
+
+function reverseMotionFixture(f) {
+ const motions=[];
+ f.w.HTMLElement.prototype.animate=function(frames,options){
+  let resolve;
+  const motion={element:this,frames,options,currentTime:240,reversed:false,cancelled:false,
+   finished:new Promise(r=>{resolve=r}),reverse(){this.reversed=true},cancel(){this.cancelled=true},finishReverse(){resolve()}};
+  motions.push(motion);return motion;
+ };
+ return motions;
+}
+test('third click reverses both live extraction animations before sliding the original card back into its slot', async t => {
+ const f=fixture({width:1440,height:900,coarse:false});t.after(f.close);await tick();
+ const motions=reverseMotionFixture(f),card=openDesktopOverview(f)[7],sheet=f.d.getElementById('contact-sheet');
+ card.click();card.click();assert.equal(motions.length,2);
+ card.click();assert.ok(motions.every(m=>m.reversed));assert.equal(motions[1].currentTime,240);
+ assert.equal(card.classList.contains('is-extracted'),true);assert.equal(card.parentElement,f.d.getElementById('browse'));
+ card.click();assert.equal(motions.length,2); // repeated clicks do not restart the return
+ motions[0].finishReverse();await tick();
+ assert.equal(sheet.children[7],card);assert.equal(card.classList.contains('is-extracted'),false);assert.equal(card.classList.contains('is-pulled'),false);
+ assert.equal(card.hasAttribute('style'),false);assert.equal(card.getAttribute('aria-expanded'),'false');assert.equal(f.d.activeElement,card);
+ assert.ok(motions.every(m=>m.cancelled));assert.deepEqual(f.errors,[]);
+});
+test('a cancelled reverse cannot restore an old card over a newer selection', async t => {
+ const f=fixture({width:1440,height:900,coarse:false});t.after(f.close);await tick();
+ const motions=reverseMotionFixture(f),thumbs=openDesktopOverview(f),sheet=f.d.getElementById('contact-sheet');
+ thumbs[7].click();thumbs[7].click();thumbs[7].click();
+ thumbs[9].click();assert.equal(sheet.children[7],thumbs[7]);assert.equal(thumbs[9].classList.contains('is-pulled'),true);
+ motions[0].finishReverse();await tick();
+ assert.equal(thumbs[9].classList.contains('is-pulled'),true);assert.equal(sheet.children.length,106);assert.deepEqual(f.errors,[]);
+});

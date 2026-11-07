@@ -69,8 +69,11 @@ request leaves the thumbnail usable. Hover and first click load no detail. A mat
 The reveal mask lives on an inner card surface, while a stable outer drop shadow
 follows that surface throughout the pull. Transform and mask animations share a
 start time; the shadow is not clipped away during motion.
-Clicking the extracted card, outside it, or Escape returns it to the deck. Scroll,
-resize and blur also restore it. Reduced motion skips extraction animation.
+A third click reverses the live extraction and reveal animations, then lowers
+the card from its 80px-raised pose back into the stack in one sequence. Clicking
+while the outward pull is still running reverses from that exact progress.
+Repeated return clicks do not restart the animation. Outside clicks, Escape,
+scroll, resize and blur still restore immediately to keep navigation responsive. Reduced motion skips extraction animation.
 The main feed's original photograph viewer remains available from feed photos.
 Mobile keeps its native document scrolling and thumbnail-to-feed navigation.
 

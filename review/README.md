@@ -35,3 +35,16 @@ Validation: 45 DOM/navigation checks plus Chromium checks of intermediate shadow
 mask/transform frames, high-resolution source decoding, stable dimensions,
 second-click-only detail loading, hover/first-click stack behavior, return and
 mobile navigation. In-motion screenshot inspected.
+
+## Animated third-click return
+
+A third click reverses the active pull and surface mask from their current
+progress, retaining the moving shadow and sharp image. Once the card rejoins
+its original slot at the raised pose, its existing slide transition lowers it
+back into the deck. One click reverses both stages; repeated clicks cannot
+restart the return. Reduced motion restores immediately. Scroll, resize, blur,
+Escape and changing selection cancel safely without stale completion callbacks.
+
+Validation: 47 DOM/navigation checks plus Chromium intermediate-frame checks for
+the reversed pull, moving shadow and final lowering transition. The final slot,
+card count, dimensions, image and mobile behavior remain intact.
