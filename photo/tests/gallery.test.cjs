@@ -29,11 +29,11 @@ test('manual scroll yields and resumes after momentum settles; Pause cancels res
   f.grid.dispatchEvent(new f.w.Event('wheel', { bubbles:true }));
   assert.equal(f.evaluate('autoScrollPlaying'), false);
   assert.equal(button.getAttribute('aria-pressed'), 'true');
-  await new Promise(resolve => setTimeout(resolve, 700));
+  await new Promise(resolve => setTimeout(resolve, 300));
   f.w.scrollTo({ top:300 });
-  await new Promise(resolve => setTimeout(resolve, 700));
+  await new Promise(resolve => setTimeout(resolve, 300));
   assert.equal(f.evaluate('autoScrollPlaying'), false, 'momentum extends the quiet period');
-  await new Promise(resolve => setTimeout(resolve, 600));
+  await new Promise(resolve => setTimeout(resolve, 300));
   assert.equal(f.evaluate('autoScrollPlaying'), true);
   assert.ok(f.w.scrollY >= 300, 'resumes from the user-selected position');
   f.grid.dispatchEvent(new f.w.Event('wheel', { bubbles:true }));
