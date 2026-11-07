@@ -46,41 +46,37 @@ full-screen viewer; native dialogs handle Escape and focus containment.
 The gallery reserves card positions before decoding images. Downloads do not move
 other cards or reshuffle the collection. The viewer follows the same photo order.
 
-## Desktop previews
+## Desktop card hover
 
 A single Shuffle icon beside Browse jumps to a random photograph outside the
-current viewport when possible, centered below the sticky header. It avoids page-edge
-targets that cannot be centered. It preserves the balanced order and existing
-image nodes; the phone Shuffle control stays in the bottom navigation.
+current viewport when possible, centered below the sticky header.
 
-Masonry cards lift on mouse hover or keyboard focus while preserving their layout
-coordinates and full opacity. In Browse, a brief hover over a thumbnail opens a
-larger uncropped preview. That clickable preview sits inside the native dialog,
-outside the contact sheet's clipping area, and stays below the header controls.
+Browse thumbnails lift 20px on mouse hover or keyboard focus, without resizing
+or moving neighboring cards. The existing cached thumbnail stays visible and
+opaque; hovering starts no detail-image downloads or decodes. Cards keep their
+border and original isolated stacking order, so cards in front continue to cover
+the lifted card. Only its top edge peeks farther out.
+Reduced-motion preferences disable the transition.
 
-Clicking either a desktop thumbnail or its raised preview closes Browse and
-centers and focuses the same photograph in the main feed. Touch/mobile thumbnail
-taps retain their jump-to-deck behavior. Clicking a photograph in the main feed
-still opens the original viewer.
+On desktop, the first click slides the card 80px upward within the stack. The
+second click pulls that same card out over 780ms with unchanged dimensions and
+styling. All overview cards start with optimized higher-resolution images;
+activation prioritizes the selected image, and extraction reuses any decoded
+preview or original fallback. A pending image can finish decoding without
+restarting movement. Late or failed results cannot disrupt another selection.
+A matching hidden slot preserves the deck layout. The reveal mask is on an
+inner surface, allowing the outer shadow to follow throughout the animation.
 
-The page declares a dark color scheme and matching theme color, with an explicit
-root background for Safari's page surroundings. On mobile, the solid header and
-bottom controls are sticky at their respective viewport edges so Safari can use
-these surfaces for its browser tint. An early inline background avoids sampling
-a white page before the stylesheet arrives. Safari controls toolbar rendering;
-its translucent address and navigation controls cannot be fully restyled by a page.
+Clicking the extracted card reverses both the live pull and the raised slide.
+Escape also starts the smooth return; another Escape closes Browse immediately.
+Outside clicks and lifecycle changes restore synchronously. Reduced motion
+skips transitions. The main feed retains its original photograph viewer, and
+mobile thumbnails retain their jump-to-feed behavior.
 
-Hover requests are canceled on exit, scroll, resize, blur, or viewer entry. A late
-image decode cannot reopen an old card. Very short windows omit the raised
-preview rather than covering controls. Reduced-motion settings disable the lift
-animation; the image and its solid backing stay fully opaque throughout.
-
-The raised card animates from its source thumbnail's real bounds using one
-uniform scale and translation (480ms eased pull, 320ms return). A cached thumbnail
-can start the pull before the larger image is decoded; that image swaps in
-without replaying the animation. Reentering a returning card resumes from its
-current visual position. Lifecycle changes cancel motion immediately. Browsers
-without Web Animations keep the static preview fallback.
+Desktop Browse remembers its selected card and scroll position for the current
+feed photo. Reopening after a feed change selects that new photo. At a changed
+viewport width, it recenters the remembered card instead of reusing an old scroll
+offset. Selection outlines stay in the deck rather than floating over the reveal.
 
 ## Review without publishing
 
@@ -121,3 +117,37 @@ The user confirmed this version allows Safari's bars to retract on iOS 27.2.
 The locked-root contained scroller remains covered by regression tests but is
 not enabled in the gallery entry page. The approved fine dark photo edge and
 raised-card shadow are included.
+
+## Overview image quality
+
+All overview cards use the optimized higher-resolution preview from their first
+render, rather than the small contact-sheet thumbnail. Lazy loading and async
+decoding are retained. The card geometry and overlapping layout remain unchanged.
+Extraction reuses an already decoded image; it only retries decoding if needed.
+Missing previews retain the existing fallback to the original photograph.
+
+## Performance
+
+Desktop feed images use responsive candidates: optimized 1080px copies at normal
+column sizes, originals when a larger display/pixel density needs them. The
+original full-screen viewer is unchanged. The high-resolution overview uses
+those same optimized URLs and can reuse images already loaded by the feed.
+Fallback removes every picture source before retrying an original.
+
+Mobile card positions are cached after layout and searched without reading every
+card on each scroll frame. Desktop layout skips unchanged resize observations.
+See `review/performance.md` for the local before/after measurements and limits.
+
+## Dragging extracted desktop cards
+
+Once the outward pull finishes, its grab cursor and title indicate that the
+extracted card can be moved with a mouse or trackpad. A 6px movement threshold
+separates clicks from drags. Pointer capture keeps the gesture attached to the
+card; transform writes are batched once per animation frame. Bounds are measured
+at drag start, and the rotated card stays within the visible page below the header.
+Release leaves the card in place. Its release click is consumed so it cannot
+accidentally return the card. A later click glides from the dropped position back
+to the original extraction path, then reverses the pull and lowers into its slot.
+Arrow keys move an extracted card by 12px; Shift + arrows moves by 36px, without
+scrolling the overview. Escape starts the animated return; a second Escape closes
+Browse. Lifecycle cancellation safely handles interrupted drags or returns. Reduced motion returns immediately. Mobile scrolling is unaffected.

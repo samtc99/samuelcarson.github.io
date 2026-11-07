@@ -3,7 +3,6 @@ const STATE_KEY = "samuel-carson:photo-deck:v1";
 const MOBILE_QUERY = "(max-width: 700px), (max-width: 1000px) and (pointer: coarse) and (max-height: 600px)";
 const mobileView = matchMedia(MOBILE_QUERY);
 const reducedMotion = matchMedia("(prefers-reduced-motion: reduce)");
-const finePointer = matchMedia("(hover: hover) and (pointer: fine)");
 const assetBase = (document.documentElement.dataset.photoBase || "/photo").replace(/\/$/, "");
 const originalBase = (document.documentElement.dataset.originalPhotoBase || assetBase).replace(/\/$/, "");
 // A code-only review can reuse the site's already-published photographs.
@@ -69,6 +68,7 @@ function escapeHTML(value) {
   return String(value).replace(/[&<>"']/g, char => ({ "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;", "'":"&#39;" })[char]);
 }
 
+const finePointer = matchMedia("(hover: hover) and (pointer: fine)");
 const grid = document.getElementById("grid");
 const counter = document.getElementById("photo-count");
 const status = document.getElementById("gallery-status");
@@ -77,8 +77,6 @@ const sheet = document.getElementById("contact-sheet");
 const lightbox = document.getElementById("lightbox");
 const lbImg = document.getElementById("lb-img");
 const lbCap = document.getElementById("lb-cap");
-const hoverPreview = document.getElementById("hover-preview");
-const hoverImg = document.getElementById("hover-preview-img");
 let photos = buildPhotos();
 let cards = [];
 const cardNodes = new Map();
@@ -89,6 +87,9 @@ let scrollFrame = 0;
 let wasMobile;
 let lastWidth = 0;
 let lastStageHeight = 0;
+let deckOffsets = [];
+let lastDesktopWidth = 0;
+let lastDesktopColumns = 0;
 let lightboxRequest = 0;
 let browseSelection = null;
 let browseTrigger = null;
@@ -97,142 +98,265 @@ let requestedIndex = null;
 let viewerReturn = null;
 let shuffleLabelTimer;
 let overviewReturn = null;
-let hoverCandidate = null;
-let hoverRequest = 0;
-let hoverTimer;
-let hoverCloseTimer;
-let keyboardNavigation = false;
-let hoverBlockedUntil = 0;
-let hoverOrigin = null;
-let hoverAnimation = null;
-let hoverClosing = false;
-
-function desktopPreviewEnabled() {
-  return finePointer.matches && !mobileView.matches;
+let browseIndex = 0;
+let browseMemory = null;
+let pulledCard = null;
+let extraction = null;
+function dragBounds(state) {
+  const rect = state.card.getBoundingClientRect();
+  const top = browse.querySelector(".browse-header").getBoundingClientRect().bottom + 12;
+  return {
+    minX:state.dragX + 18 - rect.left,
+    maxX:state.dragX + window.innerWidth - 18 - rect.right,
+    minY:state.dragY + top - rect.top,
+    maxY:state.dragY + window.innerHeight - 18 - rect.bottom
+  };
 }
-function cancelHoverMotion() {
-  const animation = hoverAnimation;
-  hoverAnimation = null;
-  hoverClosing = false;
-  animation?.cancel();
+function paintCardDrag(state) {
+  state.dragFrame = 0;
+  if (extraction !== state || state.returning) return;
+  state.dragX = state.nextDragX;
+  state.dragY = state.nextDragY;
+  state.card.style.transform = `translate(${state.dragX}px, ${state.dragY}px) rotate(-2deg)`;
 }
-function hoverBox() {
-  return { left:parseFloat(hoverPreview.style.left), top:parseFloat(hoverPreview.style.top),
-    width:parseFloat(hoverPreview.style.width), height:parseFloat(hoverPreview.style.height) };
+function queueCardMove(state,x,y,bounds) {
+  const clamp = (value,min,max) => Math.max(min,Math.min(max,value));
+  state.nextDragX = clamp(x,bounds.minX,bounds.maxX);
+  state.nextDragY = clamp(y,bounds.minY,bounds.maxY);
+  if (!state.dragFrame) state.dragFrame = requestAnimationFrame(() => paintCardDrag(state));
 }
-function cardTransform(rect, box) {
-  // A single scale keeps the photograph's proportions intact throughout motion.
-  const scale = Math.max(.01, Math.min(rect.width / box.width, rect.height / box.height));
-  const x = rect.left + (rect.width - box.width * scale) / 2 - box.left;
-  const y = rect.top + (rect.height - box.height * scale) / 2 - box.top;
-  return `translate(${x}px, ${y}px) scale(${scale})`;
+function moveCardDrag(state, event) {
+  const drag = state.drag;
+  const dx = event.clientX - drag.x, dy = event.clientY - drag.y;
+  if (!drag.moved && Math.hypot(dx,dy) < 6) return;
+  drag.moved = true;
+  state.card.classList.add("is-dragging");
+  queueCardMove(state,drag.originX + dx,drag.originY + dy,drag.bounds);
 }
-function hideHoverPreview({ animate = false } = {}) {
-  clearTimeout(hoverTimer);
-  clearTimeout(hoverCloseTimer);
-  hoverRequest++;
-  hoverCandidate = null;
-  if (animate && !hoverPreview.hidden && hoverOrigin?.isConnected && !reducedMotion.matches && typeof hoverPreview.animate === "function") {
-    const current = hoverPreview.getBoundingClientRect();
-    const origin = hoverOrigin.getBoundingClientRect();
-    const box = hoverBox();
-    cancelHoverMotion();
-    hoverClosing = true;
-    const animation = hoverPreview.animate([
-      { transform:cardTransform(current, box) },
-      { transform:cardTransform(origin, box) }
-    ], { duration:320, easing:"cubic-bezier(.3,0,.2,1)", fill:"forwards" });
-    hoverAnimation = animation;
-    Promise.resolve(animation.finished).then(() => {
-      if (hoverAnimation !== animation || !hoverClosing) return;
-      hoverPreview.hidden = true;
-      hoverOrigin = null;
-      cancelHoverMotion();
-    }).catch(() => {});
+function endCardDrag(state, { cancelled = false } = {}) {
+  if (!state.drag) return;
+  cancelAnimationFrame(state.dragFrame);
+  if (state.drag.moved) paintCardDrag(state);
+  const {id,moved} = state.drag;
+  state.drag = null;
+  state.card.classList.remove("is-dragging");
+  if (state.card.hasPointerCapture?.(id)) state.card.releasePointerCapture(id);
+  if (moved && !cancelled) {
+    // Consume the click generated by this pointer release, not the next real click.
+    state.suppressClick = true;
+    clearTimeout(state.clickResetTimer);
+    state.clickResetTimer = setTimeout(() => { state.suppressClick = false; },0);
+  }
+}
+browse.addEventListener("pointerdown", event => {
+  const state = extraction;
+  if (!state || !state.settled || state.returning || state.drag || event.button !== 0 || event.isPrimary === false || event.pointerType === "touch" || !state.card.contains(event.target)) return;
+  state.drag = {id:event.pointerId,x:event.clientX,y:event.clientY,originX:state.dragX,originY:state.dragY,bounds:dragBounds(state),moved:false};
+  state.nextDragX = state.dragX;
+  state.nextDragY = state.dragY;
+  state.card.setPointerCapture?.(event.pointerId);
+});
+browse.addEventListener("pointermove", event => {
+  const state = extraction;
+  if (!state?.drag || state.drag.id !== event.pointerId) return;
+  moveCardDrag(state,event);
+  if (state.drag.moved) event.preventDefault();
+});
+browse.addEventListener("pointerup", event => {
+  const state = extraction;
+  if (!state?.drag || state.drag.id !== event.pointerId) return;
+  moveCardDrag(state,event);
+  endCardDrag(state);
+});
+for (const type of ["pointercancel","lostpointercapture"]) {
+  browse.addEventListener(type,event => {
+    const state = extraction;
+    if (state?.drag?.id === event.pointerId) endCardDrag(state,{cancelled:true});
+  });
+}
+browse.addEventListener("dragstart", event => {
+  if (event.target.closest(".is-extracted")) event.preventDefault();
+});
+function extractCard(card) {
+  if (extraction) return;
+  const rect = card.getBoundingClientRect();
+  const bounds = sheet.getBoundingClientRect();
+  const columns = getComputedStyle(sheet).gridTemplateColumns.split(" ").length || 6;
+  const next = sheet.children[Number(card.dataset.index) + columns];
+  const frontTop = next ? next.getBoundingClientRect().top : rect.bottom;
+  const visible = Math.max(1, Math.min(rect.height, frontTop - rect.top));
+  const placeholder = card.cloneNode(true);
+  placeholder.classList.remove("is-pulled");
+  placeholder.style.visibility = "hidden";
+  placeholder.tabIndex = -1;
+  placeholder.setAttribute("aria-hidden", "true");
+  const style = card.getAttribute("style");
+  card.replaceWith(placeholder);
+  browse.append(card);
+  card.classList.remove("is-pulled");
+  card.classList.add("is-extracted");
+  const topEdge = browse.querySelector(".browse-header").getBoundingClientRect().bottom + 12;
+  const targetTop = Math.max(topEdge, Math.min(rect.top - 120, window.innerHeight - rect.height - 18));
+  const targetLeft = Math.max(18, Math.min(rect.left + 18, window.innerWidth - rect.width - 18));
+  Object.assign(card.style, {left:`${targetLeft}px`,top:`${targetTop}px`,width:`${rect.width}px`,height:`${rect.height}px`});
+  card.setAttribute("aria-label", `Move photograph with arrow keys; Enter returns it to the deck: ${photos[Number(card.dataset.index)].title}`);
+  const surface = document.createElement("span");
+  surface.className = "extraction-surface";
+  surface.append(...card.childNodes);
+  card.append(surface);
+  const state = {card,placeholder,style,surface,motion:null,maskMotion:null,homeMotion:null,dragX:0,dragY:0,drag:null,dragFrame:0,settled:false};
+  extraction = state;
+  if (!reducedMotion.matches && typeof card.animate === "function") {
+    const startX = rect.left - targetLeft, startY = rect.top - targetTop;
+    const clipTop = Math.max(0, bounds.top - rect.top);
+    const timing = {duration:780,easing:"cubic-bezier(.25,.65,.3,1)",fill:"backwards"};
+    state.motion = card.animate([
+      {transform:`translate(${startX}px, ${startY}px) rotate(0deg)`,offset:0},
+      {transform:`translate(${startX}px, ${Math.min(startY-100,-35)}px) rotate(-2deg)`,offset:.65},
+      {transform:"translate(0px, 0px) rotate(-2deg)",offset:1}
+    ], timing);
+    // Clip only the card surface. The outer shadow stays outside that mask.
+    if (typeof surface.animate === "function") {
+      state.maskMotion = surface.animate([
+        {clipPath:`inset(${clipTop}px 0 ${Math.max(0,rect.height-visible)}px 0 round 8px)`,offset:0},
+        {clipPath:"inset(0px 0px 0px 0px round 8px)",offset:.65},
+        {clipPath:"inset(0px 0px 0px 0px round 8px)",offset:1}
+      ], timing);
+      const now = document.timeline?.currentTime;
+      if (now != null) state.motion.startTime = state.maskMotion.startTime = now;
+    }
+  }
+  const ready = () => {
+    if (extraction !== state || state.returning) return;
+    state.settled = true;
+    card.classList.add("is-draggable");
+    card.title = "Drag or use arrow keys to move · click or Enter to return";
+  };
+  if (state.motion?.finished) Promise.resolve(state.motion.finished).then(ready).catch(() => {});
+  else ready();
+  // The overview already uses optimized detail; reuse decoded pixels when ready.
+  const image = surface.querySelector("img");
+  if (image.complete && image.naturalWidth) {
+    card.focus({preventScroll:true});
     return;
   }
-  cancelHoverMotion();
-  hoverPreview.hidden = true;
-  hoverOrigin = null;
+  const detail = new Image();
+  detail.decoding = "async";
+  detail.fetchPriority = "high";
+  detail.src = photos[Number(card.dataset.index)].preview;
+  detail.decode().then(() => {
+    if (extraction === state && !state.returning && card.isConnected) image.src = detail.src;
+  }).catch(() => { /* The thumbnail remains visible when detail loading fails. */ });
+  card.focus({preventScroll:true});
 }
-function positionHoverPreview(origin, photo, rect = origin.getBoundingClientRect()) {
-  const viewportWidth = document.documentElement.clientWidth || window.innerWidth;
-  const viewportHeight = window.innerHeight;
-  const margin = 18;
-  const topEdge = Math.min(viewportHeight - 100, Math.max(margin, browse.querySelector(".browse-header").getBoundingClientRect().bottom + 12));
-  const availableHeight = viewportHeight - topEdge - margin - 46;
-  if (availableHeight < 100 || viewportWidth < 200) return false;
-  const imageHeight = Math.min(600, availableHeight);
-  const imageWidth = Math.max(1, Math.min(420, viewportWidth - margin * 2 - 16, imageHeight * photo.width / photo.height));
-  const width = imageWidth + 16;
-  const height = imageWidth * photo.height / photo.width + 46;
-  const left = Math.max(margin, Math.min(rect.left + rect.width / 2 - width / 2, viewportWidth - width - margin));
-  const top = Math.max(topEdge, Math.min(rect.top + rect.height / 2 - height / 2 - 8, viewportHeight - height - margin));
-  Object.assign(hoverPreview.style, { width:`${width}px`, height:`${height}px`, left:`${left}px`, top:`${top}px` });
-  return true;
+function restoreExtractedCard(state, { slideBack = false, focus = false } = {}) {
+  if (extraction !== state) return;
+  const {card,placeholder,style,surface,motion,maskMotion} = state;
+  endCardDrag(state,{cancelled:true});
+  cancelAnimationFrame(state.dragFrame);
+  clearTimeout(state.clickResetTimer);
+  extraction = null;
+  state.homeMotion?.cancel();
+  motion?.cancel();
+  maskMotion?.cancel();
+  surface.replaceWith(...surface.childNodes);
+  card.classList.remove("is-extracted","is-draggable","is-dragging");
+  card.removeAttribute("title");
+  if (style === null) card.removeAttribute("style"); else card.setAttribute("style",style);
+  card.setAttribute("aria-label", overviewCardLabel(Number(card.dataset.index)));
+  if (slideBack) {
+    // Rejoin the deck at the exact 80px-raised endpoint of the reverse pull.
+    // Commit that pose before allowing the original slide transition to run back.
+    card.style.transition = "none";
+    card.classList.add("is-pulled");
+  }
+  placeholder.replaceWith(card);
+  if (slideBack) {
+    card.getBoundingClientRect();
+    if (style === null) card.removeAttribute("style"); else card.setAttribute("style",style);
+    if (pulledCard === card) pulledCard = null;
+    card.classList.remove("is-pulled");
+    card.setAttribute("aria-expanded", "false");
+  }
+  if (focus && card.isConnected) card.focus({preventScroll:true});
 }
-function presentHoverPreview(origin, photo, index, source) {
-  // A sharper image can replace its cached thumbnail without replaying the pull.
-  if (!hoverPreview.hidden && hoverOrigin === origin && !hoverClosing) {
-    hoverImg.src = source;
+function reverseCardPull(state, focus) {
+  const time = state.motion.currentTime;
+  state.motion.reverse();
+  state.maskMotion?.reverse();
+  if (state.maskMotion && time != null) state.maskMotion.currentTime = time;
+  Promise.resolve(state.motion.finished).then(() => {
+    if (extraction === state && state.returning) restoreExtractedCard(state, {slideBack:true,focus});
+  }).catch(() => { /* Lifecycle cancellation restores the card synchronously. */ });
+}
+function returnExtractedCard({ animate = false, focus = false } = {}) {
+  if (!extraction) return false;
+  const state = extraction;
+  if (animate && !reducedMotion.matches && typeof state.motion?.reverse === "function") {
+    if (state.returning) return true;
+    endCardDrag(state,{cancelled:true});
+    state.returning = true;
+    state.card.classList.remove("is-draggable");
+    if (Math.hypot(state.dragX,state.dragY) > .5) {
+      // Glide from the dropped position to the extraction path before reversing it.
+      state.homeMotion = state.card.animate([
+        {transform:state.card.style.transform},
+        {transform:"translate(0px, 0px) rotate(-2deg)"}
+      ], {duration:Math.min(450,Math.max(220,Math.hypot(state.dragX,state.dragY)*.45)),easing:"cubic-bezier(.22,.61,.36,1)",fill:"forwards"});
+      Promise.resolve(state.homeMotion.finished).then(() => {
+        if (extraction !== state || !state.returning) return;
+        state.card.style.removeProperty("transform");
+        state.dragX = state.dragY = 0;
+        state.homeMotion.cancel();
+        state.homeMotion = null;
+        reverseCardPull(state,focus);
+      }).catch(() => {});
+    } else reverseCardPull(state,focus);
+    return true;
+  }
+  restoreExtractedCard(state);
+  return false;
+}
+function clearPulledCard({ focus = false, animate = false } = {}) {
+  const card = pulledCard;
+  if (returnExtractedCard({animate,focus})) return;
+  pulledCard = null;
+  if (!card) return;
+  card.classList.remove("is-pulled");
+  card.setAttribute("aria-expanded", "false");
+  if (focus && card.isConnected) card.focus({preventScroll:true});
+}
+sheet.addEventListener("scroll", () => {
+  if (!browse.open) return;
+  clearPulledCard();
+}, {passive:true});
+window.addEventListener("resize", () => clearPulledCard());
+window.addEventListener("blur", () => clearPulledCard());
+finePointer.addEventListener("change", () => clearPulledCard());
+browse.addEventListener("click", event => {
+  if (event.composedPath().includes(sheet)) return;
+  if (event.target.closest(".is-extracted")) {
+    if (extraction?.suppressClick && event.detail !== 0) return;
+    clearPulledCard({animate:true,focus:true});
+  } else if (!event.target.closest(".thumbnail")) clearPulledCard();
+});
+browse.addEventListener("keydown", event => {
+  const state = extraction;
+  const directions = {ArrowLeft:[-1,0],ArrowRight:[1,0],ArrowUp:[0,-1],ArrowDown:[0,1]};
+  if (state?.settled && !state.returning && !state.drag && state.card.contains(event.target) && directions[event.key] && !event.altKey && !event.ctrlKey && !event.metaKey) {
+    event.preventDefault();
+    const [x,y] = directions[event.key], step = event.shiftKey ? 36 : 12;
+    queueCardMove(state,(state.nextDragX ?? state.dragX) + x*step,(state.nextDragY ?? state.dragY) + y*step,dragBounds(state));
     return;
   }
-  const originRect = origin.getBoundingClientRect();
-  const start = hoverClosing && hoverOrigin === origin ? hoverPreview.getBoundingClientRect() : originRect;
-  cancelHoverMotion();
-  if (hoverPreview.parentElement !== browse) browse.append(hoverPreview);
-  if (!positionHoverPreview(origin, photo, originRect)) return;
-  hoverOrigin = origin;
-  hoverImg.src = source;
-  hoverPreview.dataset.index = String(index);
-  hoverPreview.setAttribute("aria-label", `Jump to photograph in feed: ${photo.title}`);
-  hoverPreview.hidden = false;
-  if (!reducedMotion.matches && typeof hoverPreview.animate === "function") {
-    const animation = hoverPreview.animate([
-      { transform:cardTransform(start, hoverBox()) },
-      { transform:"translate(0px, 0px) scale(1)" }
-    ], { duration:480, easing:"cubic-bezier(.22,.65,.25,1)", fill:"none" });
-    hoverAnimation = animation;
-    Promise.resolve(animation.finished).then(() => {
-      if (hoverAnimation === animation) hoverAnimation = null;
-    }).catch(() => {});
+  if (event.key === "Escape" && pulledCard) {
+    event.preventDefault();event.stopPropagation();
+    if (state?.returning) {
+      clearPulledCard();
+      closeBrowse();
+    } else clearPulledCard({focus:true,animate:true});
   }
-}
-function loadHoverDetail(origin, photo, index, request) {
-  const image = new Image();
-  image.src = photo.preview;
-  image.decode().then(() => {
-    if (request !== hoverRequest || hoverCandidate !== origin || !desktopPreviewEnabled() || !browse.open || lightbox.open) return;
-    presentHoverPreview(origin, photo, index, photo.preview);
-  }).catch(() => { /* The cached thumbnail remains usable if its larger copy fails. */ });
-}
-function scheduleHoverPreview(origin, delay = 70) {
-  if (!desktopPreviewEnabled() || !browse.open || lightbox.open || performance.now() < hoverBlockedUntil) return;
-  clearTimeout(hoverTimer);
-  clearTimeout(hoverCloseTimer);
-  if (hoverCandidate === origin && !hoverPreview.hidden) return;
-  hoverCandidate = origin;
-  const request = ++hoverRequest;
-  hoverTimer = setTimeout(() => {
-    const index = Number(origin.dataset.index);
-    const photo = photos[index];
-    if (!photo || hoverCandidate !== origin) return;
-    // Start with the already-decoded thumbnail instead of waiting on the network.
-    const thumb = origin.querySelector("img");
-    if (thumb.complete && thumb.naturalWidth) presentHoverPreview(origin, photo, index, thumb.currentSrc || thumb.src);
-    loadHoverDetail(origin, photo, index, request);
-  }, delay);
-}
-function deferHoverClose() {
-  clearTimeout(hoverTimer);
-  clearTimeout(hoverCloseTimer);
-  hoverRequest++;
-  if (hoverPreview.hidden) {
-    hoverCandidate = null;
-    return;
-  }
-  hoverCloseTimer = setTimeout(() => hideHoverPreview({ animate:true }), 90);
-}
+});
 
 function saveState() {
   try { sessionStorage.setItem(STATE_KEY, JSON.stringify({ seed: shuffleSeed, rotation: shuffleRotation, file: photos[activeIndex]?.file })); }
@@ -248,6 +372,18 @@ function setActive(index) {
   if (cards[activeIndex]?.getAttribute("aria-current") !== "true") cards[activeIndex]?.setAttribute("aria-current", "true");
   saveState();
 }
+function photoTop(index) {
+  return (mobileView.matches ? deckOffsets[index] : undefined) ?? cards[index]?.offsetTop ?? 0;
+}
+function nearestDeckPhoto(top) {
+  let low = 0, high = deckOffsets.length - 1;
+  while (low < high) {
+    const mid = Math.floor((low + high) / 2);
+    if (deckOffsets[mid] < top) low = mid + 1; else high = mid;
+  }
+  if (!low) return 0;
+  return top - deckOffsets[low - 1] <= deckOffsets[low] - top ? low - 1 : low;
+}
 function scrollToPhoto(index, { focus = false, smooth = false, centerDesktop = false } = {}) {
   if (!photos.length) return;
   setActive(index);
@@ -255,7 +391,7 @@ function scrollToPhoto(index, { focus = false, smooth = false, centerDesktop = f
   const behavior = smooth && !reducedMotion.matches ? "smooth" : "instant";
   if (mobileView.matches) {
     requestedIndex = activeIndex;
-    scrollDeckTo(card.offsetTop, behavior);
+    scrollDeckTo(photoTop(activeIndex), behavior);
   }
   else if (centerDesktop) {
     // Center the photograph in the usable viewport below the sticky header.
@@ -290,7 +426,7 @@ function scrollDeckTo(top, behavior = "instant") {
   else grid.scrollTo({ top: target, behavior });
 }
 function capturePosition(index = activeIndex) {
-  return { file: photos[index]?.file, offset: deckScrollTop() - (cards[index]?.offsetTop || 0),
+  return { file: photos[index]?.file, offset: deckScrollTop() - photoTop(index),
     height: parseFloat(cards[index]?.style.getPropertyValue("--card-height")) || 1,
     windowY: window.scrollY };
 }
@@ -302,7 +438,7 @@ function restorePosition(position, { focus = false, scale = false, retainSelecti
     const height = parseFloat(cards[index].style.getPropertyValue("--card-height")) || position.height;
     const offset = position.offset * (scale ? height / position.height : 1);
     requestedIndex = retainSelection ? index : null;
-    scrollDeckTo(cards[index].offsetTop + offset);
+    scrollDeckTo(photoTop(index) + offset);
   } else window.scrollTo({ top: position.windowY, behavior: "instant" });
   if (focus) cards[index].focus({ preventScroll: true });
 }
@@ -324,20 +460,26 @@ function layoutGallery({ force = false, preservePosition = true } = {}) {
       const cardHeight = Math.min(Math.max(1, width) * photos[i].height / photos[i].width, Math.max(100, height - 32));
       card.style.setProperty("--card-height", `${cardHeight}px`);
     });
+    // Read actual rounded browser positions once after layout, never per scroll frame.
+    deckOffsets = cards.map(card => card.offsetTop);
     if (position) restorePosition(position, { scale: width !== lastWidth, retainSelection: requestedIndex !== null });
     else if (preservePosition) {
       requestedIndex = activeIndex;
-      scrollDeckTo(cards[activeIndex]?.offsetTop || 0);
+      scrollDeckTo(photoTop(activeIndex));
     }
     lastWidth = width;
     lastStageHeight = height;
   } else {
-    grid.dataset.mode = "masonry";
     const style = getComputedStyle(grid);
     const columns = Number(style.getPropertyValue("--columns")) || 3;
     const gap = parseFloat(style.getPropertyValue("--gap")) || 10;
-    const width = (grid.clientWidth - gap * (columns - 1)) / columns;
+    const galleryWidth = grid.clientWidth;
+    const width = (galleryWidth - gap * (columns - 1)) / columns;
     if (width <= 0) return;
+    if (!force && wasMobile === false && galleryWidth === lastDesktopWidth && columns === lastDesktopColumns) return;
+    grid.dataset.mode = "masonry";
+    lastDesktopWidth = galleryWidth;
+    lastDesktopColumns = columns;
     const heights = Array(columns).fill(0);
     const previousLooks = Array(columns).fill("");
     const shootCounts = Array.from({ length: columns }, () => new Map());
@@ -378,7 +520,7 @@ function revealPhoto(img) {
 function imageFailed(img, photo) {
   if (!img.dataset.originalFallback) {
     img.dataset.originalFallback = "true";
-    img.closest("picture").querySelector("source")?.remove();
+    img.closest("picture").querySelectorAll("source").forEach(source => source.remove());
     img.src = photo.src;
   } else img.closest(".card").classList.add("is-error");
 }
@@ -394,6 +536,7 @@ function render() {
     <button class="card" type="button" data-index="${i}" aria-label="View photo ${i + 1} of ${photos.length}: ${escapeHTML(photo.title)}">
       <picture class="photo-picture">
         <source media="${MOBILE_QUERY}" srcset="${escapeHTML(photo.preview)}" ${useOriginals ? "" : 'type="image/webp"'} />
+        <source srcset="${escapeHTML(useOriginals || photo.width <= 1080 ? `${photo.src} ${photo.width}w` : `${photo.preview} 1080w, ${photo.src} ${photo.width}w`)}" sizes="(max-width: 1100px) calc((100vw - 202px) / 2), calc((100vw - 212px) / 3)" />
         <img src="${escapeHTML(photo.src)}" alt="${escapeHTML(photo.alt)}" width="${photo.width}" height="${photo.height}"
           loading="${i < (mobileView.matches ? 2 : 6) ? "eager" : "lazy"}" decoding="async" fetchpriority="${i === activeIndex ? "high" : "auto"}" />
       </picture>
@@ -430,16 +573,10 @@ function render() {
 function updateScrollPosition() {
   scrollFrame = 0;
   if (!mobileView.matches || browse.open || lightbox.open || !cards.length) return;
-  let closest = 0;
-  let distance = Infinity;
   const scrollTop = deckScrollTop();
-  cards.forEach((card, i) => {
-    const delta = Math.abs(card.offsetTop - scrollTop);
-    if (delta < distance) { closest = i; distance = delta; }
-  });
+  let closest = requestedIndex ?? nearestDeckPhoto(scrollTop);
   const end = deckScrollEnd();
-  if (requestedIndex !== null) closest = requestedIndex;
-  else if (end > 0 && scrollTop >= end - 2) closest = cards.length - 1;
+  if (requestedIndex === null && end > 0 && scrollTop >= end - 2) closest = cards.length - 1;
   if (closest !== activeIndex) setActive(closest);
   // Prioritize the chosen photo; warm only small, immediate neighbors.
   const neighbors = navigator.connection?.saveData || useOriginals ? [closest] : [closest, closest - 1, closest + 1];
@@ -464,31 +601,76 @@ for (const type of ["wheel", "touchstart", "pointerdown", "keydown"]) {
 function syncModalState() {
   document.documentElement.classList.toggle("modal-open", browse.open || lightbox.open);
 }
+function rememberBrowse() {
+  // Capture while the dialog is visible, before native close hides its scroller.
+  browseMemory = mobileView.matches ? null : {file:photos[browseIndex]?.file,feedFile:photos[activeIndex]?.file,top:sheet.scrollTop,width:window.innerWidth};
+}
+function closeBrowse() {
+  rememberBrowse();
+  browse.close();
+}
+browse.addEventListener("cancel",rememberBrowse);
+function overviewCardLabel(index) {
+  const action = finePointer.matches && !mobileView.matches ? "Select photograph" : "Jump to photo";
+  return `${action} ${index+1}: ${photos[index].title}`;
+}
+function selectBrowseCard(index) {
+  const selected = sheet.children[index];
+  if (!selected) return;
+  if (browseIndex !== index) sheet.children[browseIndex]?.setAttribute("aria-current","false");
+  browseIndex = index;
+  if (selected.getAttribute("aria-current") !== "true") selected.setAttribute("aria-current","true");
+}
+sheet.addEventListener("focusin",event => {
+  const card = event.target.closest(".thumbnail");
+  if (card) selectBrowseCard(Number(card.dataset.index));
+});
 function openBrowse(trigger) {
   if (!photos.length) return;
-  hideHoverPreview();
+  clearPulledCard();
   browseTrigger = trigger;
   browseSelection = null;
   if (sheetDirty) {
-    sheet.innerHTML = photos.map((photo, i) => `<button class="thumbnail" type="button" data-index="${i}" aria-label="Jump to photo ${i + 1}: ${escapeHTML(photo.title)}"><img src="${escapeHTML(photo.thumb)}" alt="" width="300" height="400" loading="lazy" decoding="async" fetchpriority="low" /></button>`).join("");
+    sheet.innerHTML = photos.map((photo, i) => `<button class="thumbnail" type="button" data-index="${i}" aria-label="${escapeHTML(overviewCardLabel(i))}"><img src="${escapeHTML(photo.preview)}" alt="" width="300" height="400" loading="lazy" decoding="async" fetchpriority="low" /></button>`).join("");
     sheet.querySelectorAll("img").forEach((img, i) => img.addEventListener("error", () => { img.src = photos[i].src; }, { once: true }));
     sheetDirty = false;
   }
-  Array.from(sheet.children).forEach((button, i) => button.setAttribute("aria-current", String(i === activeIndex)));
+  const memory = !mobileView.matches && browseMemory?.feedFile === photos[activeIndex]?.file ? browseMemory : null;
+  const remembered = memory ? photos.findIndex(photo => photo.file === memory.file) : -1;
+  browseIndex = remembered >= 0 ? remembered : activeIndex;
+  Array.from(sheet.children).forEach((button, i) => {
+    button.setAttribute("aria-current",String(i === browseIndex));
+    button.setAttribute("aria-label",overviewCardLabel(i));
+  });
   document.getElementById("browse-count").textContent = `${photos.length} photographs · choose one to continue`;
   browse.showModal();
   syncModalState();
-  const selected = sheet.children[activeIndex];
+  const selected = sheet.children[browseIndex];
   selected.focus({ preventScroll: true });
-  selected.scrollIntoView({ block: "center", behavior: "instant" });
+  if (memory && remembered >= 0 && memory.width === window.innerWidth) sheet.scrollTop = memory.top;
+  else selected.scrollIntoView({ block: "center", behavior: "instant" });
 }
 document.querySelectorAll(".browse-trigger").forEach(button => button.addEventListener("click", () => openBrowse(button)));
-document.getElementById("browse-close").addEventListener("click", () => browse.close());
+document.getElementById("browse-close").addEventListener("click", closeBrowse);
 sheet.addEventListener("click", event => {
   const button = event.target.closest(".thumbnail");
   if (!button) return;
+  selectBrowseCard(Number(button.dataset.index));
+  const image = button.querySelector("img");
+  image.loading = "eager";
+  image.fetchPriority = "high";
+  if (finePointer.matches && !mobileView.matches) {
+    if (pulledCard === button) extractCard(button);
+    else {
+      clearPulledCard();
+      pulledCard = button;
+      button.classList.add("is-pulled");
+      button.setAttribute("aria-expanded", "true");
+    }
+    return;
+  }
   browseSelection = Number(button.dataset.index);
-  browse.close();
+  closeBrowse();
 });
 sheet.addEventListener("keydown", event => {
   const button = event.target.closest(".thumbnail");
@@ -502,7 +684,7 @@ sheet.addEventListener("keydown", event => {
 });
 browse.addEventListener("close", () => {
   if (browse.open) return;
-  hideHoverPreview();
+  clearPulledCard();
   syncModalState();
   if (browseSelection !== null) {
     scrollToPhoto(browseSelection, { focus: true, centerDesktop: true });
@@ -512,7 +694,7 @@ browse.addEventListener("close", () => {
 
 function openLightbox(index) {
   if (!photos.length) return;
-  hideHoverPreview();
+  clearPulledCard();
   if (!lightbox.open) {
     viewerReturn = capturePosition(index);
     overviewReturn = browse.open ? { file: photos[index].file, scrollTop:sheet.scrollTop } : null;
@@ -578,67 +760,6 @@ lightbox.addEventListener("close", () => {
   overviewReturn = null;
 });
 
-document.addEventListener("keydown", event => {
-  if (["Tab", "ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown", "Home", "End"].includes(event.key)) keyboardNavigation = true;
-  if (event.key === "Escape") hideHoverPreview();
-}, true);
-document.addEventListener("pointerdown", () => { keyboardNavigation = false; }, true);
-sheet.addEventListener("pointerover", event => {
-  if (event.pointerType === "touch") return;
-  const button = event.target.closest(".thumbnail");
-  if (button && !button.contains(event.relatedTarget)) scheduleHoverPreview(button);
-});
-sheet.addEventListener("pointerout", event => {
-  const button = event.target.closest(".thumbnail");
-  if (!button || button.contains(event.relatedTarget) || hoverPreview.contains(event.relatedTarget)) return;
-  deferHoverClose();
-});
-sheet.addEventListener("pointermove", event => {
-  if (event.pointerType === "touch" || !hoverPreview.hidden) return;
-  const button = event.target.closest(".thumbnail");
-  // Scrolling can move a card under a stationary pointer while hover is blocked.
-  // A subsequent mouse movement should work without leaving and re-entering it.
-  if (button && hoverCandidate !== button) scheduleHoverPreview(button);
-});
-sheet.addEventListener("focusin", event => {
-  const button = event.target.closest(".thumbnail");
-  if (button && keyboardNavigation) scheduleHoverPreview(button, 0);
-});
-sheet.addEventListener("focusout", event => {
-  if (!hoverPreview.contains(event.relatedTarget)) deferHoverClose();
-});
-hoverPreview.addEventListener("pointerenter", () => {
-  clearTimeout(hoverCloseTimer);
-  if (hoverClosing && hoverOrigin) {
-    const origin = hoverOrigin;
-    const index = Number(hoverPreview.dataset.index);
-    hoverCandidate = origin;
-    const request = ++hoverRequest;
-    presentHoverPreview(origin, photos[index], index, hoverImg.src);
-    if (hoverImg.src !== photos[index].preview) loadHoverDetail(origin, photos[index], index, request);
-  }
-});
-hoverPreview.addEventListener("pointerleave", event => {
-  // A growing card can uncover its source near a clamped viewport edge.
-  // Treat the source and raised preview as one continuous hover area.
-  if (hoverOrigin?.contains(event.relatedTarget)) {
-    clearTimeout(hoverCloseTimer);
-    return;
-  }
-  deferHoverClose();
-});
-hoverPreview.addEventListener("click", () => {
-  if (hoverPreview.hidden) return;
-  browseSelection = Number(hoverPreview.dataset.index);
-  browse.close();
-});
-sheet.addEventListener("scroll", () => {
-  hideHoverPreview();
-  hoverBlockedUntil = performance.now() + 160;
-}, { passive:true });
-window.addEventListener("resize", hideHoverPreview);
-window.addEventListener("blur", hideHoverPreview);
-finePointer.addEventListener("change", hideHoverPreview);
 grid.addEventListener("click", event => {
   const card = event.target.closest(".card");
   if (card) openLightbox(Number(card.dataset.index));

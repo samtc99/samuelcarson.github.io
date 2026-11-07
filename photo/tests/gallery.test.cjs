@@ -11,7 +11,7 @@ const tick = () => new Promise(resolve => setTimeout(resolve, 45));
 const hoverTick = () => new Promise(resolve => setTimeout(resolve, 165));
 
 // DOM/state tests, not a substitute for reviewing native scrolling on a phone.
-function fixture({ width = 390, height = 844, coarse = true, saved, data = collection, blockedStorage = false, reduced = false, originals = false, assetBase, originalBase, saveData = false, animations = false, documentDeck = false } = {}) {
+function fixture({ width = 390, height = 844, coarse = true, saved, data = collection, blockedStorage = false, reduced = false, originals = false, assetBase, originalBase, saveData = false, documentDeck = false } = {}) {
   const errors = [];
   const console = new VirtualConsole();
   console.on('jsdomError', error => errors.push(error));
@@ -31,7 +31,6 @@ function fixture({ width = 390, height = 844, coarse = true, saved, data = colle
   const scrolls = [];
   const pending = [];
   const observers = [];
-  const motions = [];
   let holdDecodes = false;
   let rejectDecodes = false;
   const mobile = () => width <= 700 || (width <= 1000 && coarse && height <= 600);
@@ -59,7 +58,7 @@ function fixture({ width = 390, height = 844, coarse = true, saved, data = colle
   Object.defineProperty(grid, 'clientHeight', { get:() => mobile() ? height - 132 : parseFloat(grid.style.height) || 0 });
   Object.defineProperty(grid, 'scrollHeight', { get:() => mobile() ? Math.max(grid.clientHeight,
     [...grid.children].reduce((sum, card) => sum + (parseFloat(card.style.getPropertyValue('--card-height')) || 0) + 16, 0)) : grid.clientHeight });
-  Object.defineProperty(w.HTMLElement.prototype, 'offsetTop', { get() {
+  Object.defineProperty(w.HTMLElement.prototype, 'offsetTop', { configurable:true, get() {
     if (!this.classList.contains('card')) return 0;
     if (mobile()) {
       let top = 0;
@@ -115,25 +114,10 @@ function fixture({ width = 390, height = 844, coarse = true, saved, data = colle
     if (holdDecodes) return new Promise((resolve, reject) => pending.push({ image:this, resolve, reject }));
     return Promise.resolve();
   };
-  if (animations) {
-    w.HTMLElement.prototype.animate = function(frames, options) {
-      let resolve, reject;
-      const finished = new Promise((a, b) => { resolve = a; reject = b; });
-      const animation = { element:this, frames, options, finished, cancelled:false,
-        finish() { resolve(); }, cancel() { this.cancelled = true; reject(new Error('Animation canceled')); } };
-      motions.push(animation);
-      return animation;
-    };
-    d.getElementById('hover-preview').getBoundingClientRect = function() {
-      const left = parseFloat(this.style.left), top = parseFloat(this.style.top);
-      const width = parseFloat(this.style.width), height = parseFloat(this.style.height);
-      return { left, top, width, height, right:left + width, bottom:top + height };
-    };
-  }
   if (saved) w.sessionStorage.setItem('samuel-carson:photo-deck:v1', JSON.stringify(saved));
   if (blockedStorage) Object.defineProperty(w, 'sessionStorage', { get() { throw new Error('Storage unavailable'); } });
   w.eval(data + '\n' + app);
-  return { w, d, grid, errors, scrolls, pending, motions, close:() => w.close(),
+  return { w, d, grid, errors, scrolls, pending, close:() => w.close(),
     scrollTo(options) { grid.dispatchEvent(new w.Event('wheel')); grid.scrollTo(options); },
     async resizeObserved() { observers.forEach(callback => callback()); await tick(); },
     images:() => [...grid.querySelectorAll('img')],
@@ -538,7 +522,7 @@ test('optimized review serves small assets separately while keeping full-size or
     assert.equal(source.type, 'image/webp');
   }
   f.d.querySelector('.browse-trigger').click();
-  assert.ok([...f.d.querySelectorAll('.thumbnail img')].every(image => image.src.includes('/feat/mobile-photo-deck/photo/thumbs/') && image.src.endsWith('.webp')));
+  assert.ok([...f.d.querySelectorAll('.thumbnail img')].every(image => image.src.includes('/feat/mobile-photo-deck/photo/previews/') && image.src.endsWith('.webp')));
 });
 
 test('data-saving mode loads the chosen photo without eagerly warming offscreen neighbors', async t => {
@@ -561,60 +545,32 @@ function openDesktopOverview(f) {
   return [...f.d.querySelectorAll('.thumbnail')];
 }
 
-test('desktop hover creates an opaque uncropped preview without moving gallery cards or covering controls', async t => {
-  const f = fixture({ width:1440, height:900, coarse:false }); t.after(f.close); await tick();
-  const transforms = [...f.grid.children].map(card => card.style.transform);
-  const thumbs = openDesktopOverview(f);
-  const selected = thumbs[7];
-  selected.getBoundingClientRect = () => ({ left:1300, top:720, width:115, height:153, right:1415, bottom:873 });
-  pointer(f, selected, 'pointerover'); await hoverTick();
-  const preview = f.d.getElementById('hover-preview');
-  assert.equal(preview.hidden, false);
-  assert.equal(preview.parentElement, f.d.getElementById('browse'));
-  assert.equal(preview.dataset.index, '7');
-  assert.ok(f.d.getElementById('hover-preview-img').src.endsWith(f.files()[7].replace('.jpg','.webp')));
-  const left = parseFloat(preview.style.left), top = parseFloat(preview.style.top);
-  assert.ok(left >= 18 && left + parseFloat(preview.style.width) <= 1440 - 18);
-  assert.ok(top >= 162 && top + parseFloat(preview.style.height) <= 900 - 18);
-  assert.deepEqual([...f.grid.children].map(card => card.style.transform), transforms);
-  const style = f.d.createElement('style'); style.textContent = fs.readFileSync(path.join(root,'styles.css'),'utf8'); f.d.head.append(style);
-  assert.equal(f.w.getComputedStyle(preview).opacity, '1');
-  assert.equal(f.w.getComputedStyle(f.d.getElementById('hover-preview-img')).opacity, '1');
+test('second click pulls the same card out and requests detail while holding its thumbnail', async t => {
+ const f=fixture({width:1440,height:900,coarse:false});t.after(f.close);await tick();
+ const thumbs=openDesktopOverview(f),card=thumbs[15],image=card.querySelector('img'),src=image.src;
+ const sheet=f.d.getElementById('contact-sheet');sheet.getBoundingClientRect=()=>({top:160});
+ card.getBoundingClientRect=()=>({left:400,top:300,width:200,height:267,bottom:567});
+ thumbs[21].getBoundingClientRect=()=>({top:410});
+ let motion;card.animate=(frames,options)=>{motion={frames,options,cancelled:false,cancel(){this.cancelled=true}};return motion};
+ f.hold(true);card.click();assert.equal(card.classList.contains('is-pulled'),true);card.click();await tick();
+ assert.equal(card.classList.contains('is-extracted'),true);assert.equal(card.parentElement,f.d.getElementById('browse'));
+ assert.equal(card.querySelector('img'),image);assert.equal(image.src,src);assert.equal(f.pending.length,1);
+ assert.equal(card.style.width,'200px');assert.equal(card.style.height,'267px');
+ assert.equal(motion.options.duration,780);assert.ok(motion.frames.every(frame=>!frame.transform.includes('scale')));
+ assert.equal(motion.frames[0].clipPath,undefined);assert.ok(card.querySelector('.extraction-surface'));
+ assert.equal(f.d.getElementById('lightbox').open,false);assert.equal(sheet.children.length,106);
+ card.click();await tick();assert.equal(sheet.children[15],card);assert.equal(card.classList.contains('is-extracted'),false);assert.equal(motion.cancelled,true);
+ assert.equal(sheet.children.length,106);assert.deepEqual(f.errors,[]);
 });
 
-test('moving onto the raised preview keeps it open and clicking it returns to its photograph in the feed', async t => {
-  const f = fixture({ width:1440, height:900, coarse:false }); t.after(f.close); await tick();
-  const thumbs = openDesktopOverview(f);
-  pointer(f, thumbs[8], 'pointerover'); await hoverTick();
-  const preview = f.d.getElementById('hover-preview');
-  pointer(f, thumbs[8], 'pointerout', preview);
-  pointer(f, preview, 'pointerenter', thumbs[8]); await hoverTick();
-  assert.equal(preview.hidden, false);
-  preview.click(); await tick();
-  assert.equal(preview.hidden, true);
-  assert.equal(f.d.getElementById('browse').open, false);
-  assert.equal(f.d.getElementById('lightbox').open, false);
-  assert.equal(f.state().file, f.files()[8]);
-});
-
-test('desktop thumbnail selection closes Browse and centers and focuses the same photo in the feed', async t => {
-  const f = fixture({width:1440,height:900,coarse:false}); t.after(f.close); await tick();
-  const thumbs = openDesktopOverview(f);
-  const card = f.grid.children[15];
-  card.getBoundingClientRect = () => ({top:1500,width:400});
-  f.d.querySelector('.top').getBoundingClientRect = () => ({bottom:68});
-  thumbs[15].click(); await tick();
-  assert.equal(f.d.getElementById('browse').open, false);
-  assert.equal(f.d.getElementById('lightbox').open, false);
-  assert.equal(f.d.activeElement, card);
-  assert.equal(f.state().file, f.files()[15]);
-  const img = card.querySelector('img');
-  assert.equal(f.w.scrollY, 1500 + 400 * img.height / img.width / 2 - 484);
-  assert.equal(f.d.documentElement.classList.contains('modal-open'), false);
-  // The main feed still provides access to the original viewer.
-  card.click(); await tick();
-  assert.equal(f.d.getElementById('lightbox').open, true);
-  assert.deepEqual(f.errors, []);
+test('selecting another card, Escape and scrolling reset the pulled-card state without leaving Browse', async t => {
+ const f=fixture({width:1440,height:900,coarse:false});t.after(f.close);await tick();
+ const thumbs=openDesktopOverview(f);thumbs[2].click();thumbs[3].click();
+ assert.equal(thumbs[2].classList.contains('is-pulled'),false);assert.equal(thumbs[3].classList.contains('is-pulled'),true);
+ thumbs[3].dispatchEvent(new f.w.KeyboardEvent('keydown',{key:'Escape',bubbles:true,cancelable:true}));
+ assert.equal(thumbs[3].classList.contains('is-pulled'),false);assert.equal(f.d.getElementById('browse').open,true);
+ thumbs[4].click();f.d.getElementById('contact-sheet').dispatchEvent(new f.w.Event('scroll'));assert.equal(thumbs[4].classList.contains('is-pulled'),false);
+ assert.deepEqual(f.errors,[]);
 });
 
 test('mobile touch keeps thumbnail-to-deck behavior and never enables hover previews', async t => {
@@ -622,216 +578,12 @@ test('mobile touch keeps thumbnail-to-deck behavior and never enables hover prev
   f.d.querySelector('.browse-trigger').click();
   const thumb = f.d.querySelectorAll('.thumbnail')[9];
   pointer(f, thumb, 'pointerover', null, 'touch'); await hoverTick();
-  assert.equal(f.d.getElementById('hover-preview').hidden, true);
+  assert.equal(f.d.getElementById('hover-preview'), null);
   thumb.click(); await tick();
   assert.equal(f.d.getElementById('browse').open, false);
   assert.equal(f.d.getElementById('lightbox').open, false);
   assert.equal(f.state().file, f.files()[9]);
 });
-
-test('passing over a card quickly does not open a preview after the pointer leaves', async t => {
-  const f = fixture({ width:1440, height:900, coarse:false }); t.after(f.close); await tick();
-  const thumbs = openDesktopOverview(f);
-  pointer(f, thumbs[0], 'pointerover');
-  pointer(f, thumbs[0], 'pointerout', f.d.body);
-  await hoverTick();
-  assert.equal(f.d.getElementById('hover-preview').hidden, true);
-});
-
-test('late hover decodes cannot display a card that the pointer already left', async t => {
-  const f = fixture({ width:1440, height:900, coarse:false }); t.after(f.close); await tick();
-  const thumbs = openDesktopOverview(f); f.hold(true);
-  pointer(f, thumbs[0], 'pointerover'); await hoverTick();
-  pointer(f, thumbs[0], 'pointerout', thumbs[1]);
-  pointer(f, thumbs[1], 'pointerover', thumbs[0]); await hoverTick();
-  assert.equal(f.pending.length, 2);
-  f.pending[1].resolve(); await tick();
-  const preview = f.d.getElementById('hover-preview');
-  assert.equal(preview.dataset.index, '1');
-  f.pending[0].resolve(); await tick();
-  assert.equal(preview.dataset.index, '1');
-  pointer(f, preview, 'pointerleave', f.d.body); await hoverTick();
-  assert.equal(preview.hidden, true);
-});
-
-test('scrolling, resizing and closing the overview dismiss raised previews', async t => {
-  const f = fixture({ width:1440, height:900, coarse:false }); t.after(f.close); await tick();
-  const thumbs = openDesktopOverview(f), preview = f.d.getElementById('hover-preview');
-  pointer(f, thumbs[2], 'pointerover'); await hoverTick();
-  f.d.getElementById('contact-sheet').dispatchEvent(new f.w.Event('scroll'));
-  assert.equal(preview.hidden, true);
-  await hoverTick();
-  pointer(f, thumbs[3], 'pointerover'); await hoverTick();
-  assert.equal(preview.hidden, false);
-  f.w.dispatchEvent(new f.w.Event('resize'));
-  assert.equal(preview.hidden, true);
-  pointer(f, thumbs[4], 'pointermove'); await hoverTick();
-  assert.equal(preview.hidden, false);
-  f.d.getElementById('browse-close').click(); await tick();
-  assert.equal(preview.hidden, true);
-});
-
-test('keyboard focus can preview and open a desktop card without a mouse', async t => {
-  const f = fixture({ width:1440, height:900, coarse:false }); t.after(f.close); await tick();
-  const thumbs = openDesktopOverview(f);
-  assert.equal(f.d.getElementById('hover-preview').hidden, true);
-  f.d.dispatchEvent(new f.w.KeyboardEvent('keydown', { key:'Tab', bubbles:true }));
-  thumbs[3].focus(); await tick();
-  assert.equal(f.d.getElementById('hover-preview').hidden, false);
-  thumbs[3].click(); await tick();
-  assert.equal(f.state().file, f.files()[3]);
-});
-
-test('hover image failures leave thumbnail click navigation available', async t => {
-  const f = fixture({ width:1440, height:900, coarse:false }); t.after(f.close); await tick();
-  const thumbs = openDesktopOverview(f); f.reject(true);
-  pointer(f, thumbs[4], 'pointerover'); await hoverTick();
-  assert.equal(f.d.getElementById('hover-preview').hidden, true);
-  f.reject(false); thumbs[4].click(); await tick();
-  assert.equal(f.state().file, f.files()[4]);
-  assert.deepEqual(f.errors, []);
-});
-
-test('very short desktop windows keep controls available instead of overflowing a hover preview', async t => {
-  const f = fixture({ width:1440, height:240, coarse:false }); t.after(f.close); await tick();
-  const thumbs = openDesktopOverview(f);
-  pointer(f, thumbs[0], 'pointerover'); await hoverTick();
-  assert.equal(f.d.getElementById('hover-preview').hidden, true);
-  thumbs[0].click(); await tick();
-  assert.equal(f.d.getElementById('lightbox').open, false);
-  assert.equal(f.d.getElementById('browse').open, false);
-});
-
-function motionOrigin(thumb) {
-  const rect = { left:400, top:330, width:150, height:200, right:550, bottom:530 };
-  thumb.getBoundingClientRect = () => rect;
-  return rect;
-}
-function assertFitsOrigin(transform, preview, origin) {
-  const values = transform.match(/^translate\(([-\d.]+)px, ([-\d.]+)px\) scale\(([\d.]+)\)$/);
-  assert.ok(values, 'the pull uses a translation and a single uniform scale');
-  const [, x, y, scale] = values.map(Number);
-  const width = parseFloat(preview.style.width), height = parseFloat(preview.style.height);
-  assert.ok(scale > 0 && scale < 1);
-  assert.ok(width * scale <= origin.width + .001);
-  assert.ok(height * scale <= origin.height + .001);
-  assert.ok(Math.abs(parseFloat(preview.style.left) + x + width * scale / 2 - origin.left - origin.width / 2) < .001);
-  assert.ok(Math.abs(parseFloat(preview.style.top) + y + height * scale / 2 - origin.top - origin.height / 2) < .001);
-}
-
-test('the pull grows from the actual thumbnail bounds with uniform, fully opaque motion', async t => {
-  const f = fixture({ width:1440, height:900, coarse:false, animations:true }); t.after(f.close); await tick();
-  const thumbs = openDesktopOverview(f), origin = motionOrigin(thumbs[0]);
-  pointer(f, thumbs[0], 'pointerover'); await hoverTick();
-  const preview = f.d.getElementById('hover-preview');
-  assert.equal(f.motions.length, 1);
-  const motion = f.motions[0];
-  assertFitsOrigin(motion.frames[0].transform, preview, origin);
-  assert.equal(motion.frames[1].transform, 'translate(0px, 0px) scale(1)');
-  assert.ok(motion.frames.every(frame => Object.keys(frame).every(key => key === 'transform')));
-  assert.equal(preview.hidden, false);
-});
-
-test('cached thumbnail starts the pull before detail download and sharper pixels do not restart it', async t => {
-  const f = fixture({ width:1440, height:900, coarse:false, animations:true }); t.after(f.close); await tick();
-  const thumbs = openDesktopOverview(f); motionOrigin(thumbs[0]);
-  const thumbImg = thumbs[0].querySelector('img'); f.load(thumbImg); f.hold(true);
-  pointer(f, thumbs[0], 'pointerover'); await hoverTick();
-  const preview = f.d.getElementById('hover-preview'), image = f.d.getElementById('hover-preview-img');
-  assert.equal(preview.hidden, false);
-  assert.equal(image.src, thumbImg.src);
-  assert.equal(f.motions.length, 1);
-  assert.equal(f.pending.length, 1);
-  f.pending[0].resolve(); await tick();
-  assert.ok(image.src.includes('/previews/'));
-  assert.equal(f.motions.length, 1);
-});
-
-test('leaving returns the card toward its thumbnail before hiding', async t => {
-  const f = fixture({ width:1440, height:900, coarse:false, animations:true }); t.after(f.close); await tick();
-  const thumbs = openDesktopOverview(f), origin = motionOrigin(thumbs[0]);
-  pointer(f, thumbs[0], 'pointerover'); await hoverTick();
-  f.motions[0].finish(); await tick();
-  const preview = f.d.getElementById('hover-preview');
-  pointer(f, preview, 'pointerleave', f.d.body); await hoverTick();
-  assert.equal(preview.hidden, false);
-  assert.equal(f.motions.length, 2);
-  assertFitsOrigin(f.motions[1].frames[1].transform, preview, origin);
-  f.motions[1].finish(); await tick();
-  assert.equal(preview.hidden, true);
-});
-
-test('reentering a returning card cancels stale completion and reverses from the current visual bounds', async t => {
-  const f = fixture({ width:1440, height:900, coarse:false, animations:true }); t.after(f.close); await tick();
-  const thumbs = openDesktopOverview(f); motionOrigin(thumbs[0]);
-  pointer(f, thumbs[0], 'pointerover'); await hoverTick();
-  f.motions[0].finish(); await tick();
-  const preview = f.d.getElementById('hover-preview');
-  pointer(f, preview, 'pointerleave', f.d.body); await hoverTick();
-  const returning = f.motions[1];
-  preview.getBoundingClientRect = () => ({ left:410, top:340, width:120, height:180 });
-  returning.finish();
-  pointer(f, preview, 'pointerenter', f.d.body); await tick();
-  assert.equal(returning.cancelled, true);
-  assert.equal(preview.hidden, false);
-  assert.equal(f.motions.length, 3);
-  assertFitsOrigin(f.motions[2].frames[0].transform, preview, { left:410, top:340, width:120, height:180 });
-});
-
-test('scroll and modal entry cancel motion immediately instead of leaving floating cards', async t => {
-  const f = fixture({ width:1440, height:900, coarse:false, animations:true }); t.after(f.close); await tick();
-  const thumbs = openDesktopOverview(f); motionOrigin(thumbs[0]);
-  pointer(f, thumbs[0], 'pointerover'); await hoverTick();
-  const preview = f.d.getElementById('hover-preview'), first = f.motions[0];
-  f.d.getElementById('contact-sheet').dispatchEvent(new f.w.Event('scroll'));
-  assert.equal(first.cancelled, true);
-  assert.equal(preview.hidden, true);
-  first.finish(); await tick();
-  assert.equal(preview.hidden, true);
-  await hoverTick();
-  pointer(f, thumbs[0], 'pointerover'); await hoverTick();
-  const next = f.motions.at(-1);
-  preview.click(); await tick();
-  assert.equal(next.cancelled, true);
-  assert.equal(preview.hidden, true);
-  assert.equal(f.d.getElementById('lightbox').open, false);
-  assert.equal(f.d.getElementById('browse').open, false);
-});
-
-test('reduced motion bypasses both pull and return animations', async t => {
-  const f = fixture({ width:1440, height:900, coarse:false, animations:true, reduced:true }); t.after(f.close); await tick();
-  const thumbs = openDesktopOverview(f); motionOrigin(thumbs[0]);
-  pointer(f, thumbs[0], 'pointerover'); await hoverTick();
-  const preview = f.d.getElementById('hover-preview');
-  assert.equal(preview.hidden, false);
-  assert.equal(f.motions.length, 0);
-  pointer(f, preview, 'pointerleave', f.d.body); await hoverTick();
-  assert.equal(preview.hidden, true);
-  assert.equal(f.motions.length, 0);
-});
-
-test('a moving preview uncovering its source at viewport edges does not oscillate closed', async t => {
-  const f = fixture({ width:1440, height:900, coarse:false, animations:true }); t.after(f.close); await tick();
-  const thumbs = openDesktopOverview(f); motionOrigin(thumbs[0]);
-  pointer(f, thumbs[0], 'pointerover'); await hoverTick();
-  const preview = f.d.getElementById('hover-preview');
-  pointer(f, preview, 'pointerleave', thumbs[0]); await hoverTick();
-  assert.equal(preview.hidden, false);
-  assert.equal(f.motions.length, 1);
-});
-
-test('a cached preview stays usable when its high-resolution detail fails', async t => {
-  const f = fixture({ width:1440, height:900, coarse:false, animations:true }); t.after(f.close); await tick();
-  const thumbs = openDesktopOverview(f); motionOrigin(thumbs[0]);
-  const image = thumbs[0].querySelector('img'); f.load(image); f.reject(true);
-  pointer(f, thumbs[0], 'pointerover'); await hoverTick();
-  assert.equal(f.d.getElementById('hover-preview').hidden, false);
-  assert.equal(f.d.getElementById('hover-preview-img').src, image.src);
-  f.reject(false); f.d.getElementById('hover-preview').click(); await tick();
-  assert.equal(f.state().file, f.files()[0]);
-  assert.deepEqual(f.errors, []);
-});
-
 test('desktop shuffle sits beside Browse and jumps past currently visible photos', async t => {
   const f = fixture({ width:1440, height:900, coarse:false }); t.after(f.close); await tick();
   const button = f.d.querySelector('.desktop-shuffle');
@@ -922,4 +674,211 @@ test('production entry enables document scrolling and its review keeps the live 
  const review=fs.readFileSync(path.join(root,'../review/mobile-deck.html'),'utf8');
  assert.match(review, /<html[^>]*data-document-deck/);
  assert.match(review, /data-photo-base="https:\/\/samtc.me\/photo"/);
+});
+
+test('hovering and focusing thumbnails never starts detail decodes or creates a floating photo', async t => {
+ const f=fixture({width:1440,height:900,coarse:false});t.after(f.close);await tick();
+ const thumbs=openDesktopOverview(f);f.hold(true);
+ const nodes=[...f.grid.children],srcs=thumbs.map(t=>t.querySelector('img').src);
+ for(const thumb of thumbs.slice(0,12)){pointer(f,thumb,'pointerover');thumb.focus();pointer(f,thumb,'pointerout',f.d.body);}
+ await hoverTick();assert.equal(f.pending.length,0);assert.equal(f.d.getElementById('hover-preview'),null);
+ assert.deepEqual([...f.grid.children],nodes);assert.deepEqual(thumbs.map(t=>t.querySelector('img').src),srcs);assert.deepEqual(f.errors,[]);
+});
+
+test('Escape and resize restore an extracted card to its exact slot', async t => {
+ const f=fixture({width:1440,height:900,coarse:false});t.after(f.close);await tick();
+ const thumbs=openDesktopOverview(f),sheet=f.d.getElementById('contact-sheet'),card=thumbs[8];
+ card.click();card.click();assert.equal(card.classList.contains('is-extracted'),true);
+ card.dispatchEvent(new f.w.KeyboardEvent('keydown',{key:'Escape',bubbles:true,cancelable:true}));
+ assert.equal(sheet.children[8],card);assert.equal(card.classList.contains('is-extracted'),false);assert.equal(f.d.getElementById('browse').open,true);
+ card.click();card.click();f.w.dispatchEvent(new f.w.Event('resize'));
+ assert.equal(sheet.children[8],card);assert.equal(sheet.children.length,106);assert.equal(card.hasAttribute('style'),false);assert.deepEqual(f.errors,[]);
+});
+
+test('second-click detail swaps only after decode and does not alter card geometry or restart motion', async t => {
+ const f=fixture({width:1440,height:900,coarse:false});t.after(f.close);await tick();
+ const card=openDesktopOverview(f)[10],image=card.querySelector('img'),thumb=image.src;
+ f.hold(true);card.click();assert.equal(f.pending.length,0);card.click();
+ const geometry=card.getAttribute('style');assert.equal(f.pending.length,1);assert.equal(image.src,thumb);
+ assert.equal(f.pending[0].image.fetchPriority,'high');
+ f.pending[0].resolve();await tick();assert.ok(image.src.includes('/previews/'));assert.equal(card.getAttribute('style'),geometry);
+ assert.equal(card.querySelector('img'),image);assert.equal(card.classList.contains('is-extracted'),true);assert.deepEqual(f.errors,[]);
+});
+test('late or failed detail loads leave returned and newly extracted cards intact', async t => {
+ const f=fixture({width:1440,height:900,coarse:false});t.after(f.close);await tick();
+ const thumbs=openDesktopOverview(f),first=thumbs[4],second=thumbs[5],image=first.querySelector('img'),src=image.src;
+ f.hold(true);first.click();first.click();first.click();second.click();second.click();
+ f.pending[0].resolve();await tick();assert.equal(image.src,src);assert.equal(second.classList.contains('is-extracted'),true);
+ const secondImage=second.querySelector('img'),secondSrc=secondImage.src;f.pending[1].reject(new Error('offline'));await tick();
+ assert.equal(secondImage.src,secondSrc);assert.equal(second.classList.contains('is-extracted'),true);assert.deepEqual(f.errors,[]);
+});
+
+function reverseMotionFixture(f) {
+ const motions=[];
+ f.w.HTMLElement.prototype.animate=function(frames,options){
+  let resolve;
+  const motion={element:this,frames,options,currentTime:240,reversed:false,cancelled:false,
+   finished:new Promise(r=>{resolve=r}),reverse(){this.reversed=true},cancel(){this.cancelled=true},finishReverse(){resolve()}};
+  motions.push(motion);return motion;
+ };
+ return motions;
+}
+test('third click reverses both live extraction animations before sliding the original card back into its slot', async t => {
+ const f=fixture({width:1440,height:900,coarse:false});t.after(f.close);await tick();
+ const motions=reverseMotionFixture(f),card=openDesktopOverview(f)[7],sheet=f.d.getElementById('contact-sheet');
+ card.click();card.click();assert.equal(motions.length,2);
+ card.click();assert.ok(motions.every(m=>m.reversed));assert.equal(motions[1].currentTime,240);
+ assert.equal(card.classList.contains('is-extracted'),true);assert.equal(card.parentElement,f.d.getElementById('browse'));
+ card.click();assert.equal(motions.length,2); // repeated clicks do not restart the return
+ motions[0].finishReverse();await tick();
+ assert.equal(sheet.children[7],card);assert.equal(card.classList.contains('is-extracted'),false);assert.equal(card.classList.contains('is-pulled'),false);
+ assert.equal(card.hasAttribute('style'),false);assert.equal(card.getAttribute('aria-expanded'),'false');assert.equal(f.d.activeElement,card);
+ assert.ok(motions.every(m=>m.cancelled));assert.deepEqual(f.errors,[]);
+});
+test('a cancelled reverse cannot restore an old card over a newer selection', async t => {
+ const f=fixture({width:1440,height:900,coarse:false});t.after(f.close);await tick();
+ const motions=reverseMotionFixture(f),thumbs=openDesktopOverview(f),sheet=f.d.getElementById('contact-sheet');
+ thumbs[7].click();thumbs[7].click();thumbs[7].click();
+ thumbs[9].click();assert.equal(sheet.children[7],thumbs[7]);assert.equal(thumbs[9].classList.contains('is-pulled'),true);
+ motions[0].finishReverse();await tick();
+ assert.equal(thumbs[9].classList.contains('is-pulled'),true);assert.equal(sheet.children.length,106);assert.deepEqual(f.errors,[]);
+});
+
+test('every overview card starts with the optimized higher-resolution source and retains lazy loading', async t => {
+ const f=fixture({width:1440,height:900,coarse:false});t.after(f.close);await tick();
+ const thumbs=openDesktopOverview(f);
+ assert.equal(thumbs.length,106);
+ for(const card of thumbs){const image=card.querySelector('img');assert.ok(image.src.includes('/previews/'));assert.equal(image.loading,'lazy');assert.equal(image.getAttribute('decoding'),'async');}
+ const card=thumbs[7],image=card.querySelector('img');f.load(image);const src=image.src;f.hold(true);
+ card.click();card.click();assert.equal(f.pending.length,0);assert.equal(image.src,src);assert.deepEqual(f.errors,[]);
+});
+
+test('native mobile scrolling tracks photos without rereading every card position', async t => {
+ const f=fixture({documentDeck:true});t.after(f.close);await tick();
+ const targets=[5,16,37,65].map(index=>({index,top:f.grid.children[index].offsetTop}));
+ const proto=f.w.HTMLElement.prototype,original=Object.getOwnPropertyDescriptor(proto,'offsetTop').get;let reads=0;
+ Object.defineProperty(proto,'offsetTop',{configurable:true,get(){if(this.classList.contains('card'))reads++;return original.call(this)}});
+ for(const {index,top} of targets){f.grid.dispatchEvent(new f.w.Event('touchstart'));f.w.scrollTo({top});await tick();assert.equal(f.state().file,f.files()[index]);}
+ assert.equal(reads,0);assert.deepEqual(f.errors,[]);
+});
+test('unchanged desktop resize observations leave card layout untouched', async t => {
+ const f=fixture({width:1440,height:900,coarse:false});t.after(f.close);await tick();const mutations=[];
+ const observer=new f.w.MutationObserver(records=>mutations.push(...records));observer.observe(f.grid,{attributes:true,subtree:true});
+ await f.resizeObserved();observer.disconnect();assert.equal(mutations.length,0);assert.deepEqual(f.errors,[]);
+});
+test('a failed responsive feed copy removes every source before falling back to the original', async t => {
+ const f=fixture({width:1440,height:900,coarse:false});t.after(f.close);await tick();
+ const image=f.images()[0],picture=image.closest('picture');assert.equal(picture.querySelectorAll('source').length,2);
+ image.dispatchEvent(new f.w.Event('error'));assert.equal(picture.querySelectorAll('source').length,0);
+ assert.ok(image.src.includes('/images/'));assert.equal(image.closest('.card').classList.contains('is-error'),false);
+ image.dispatchEvent(new f.w.Event('error'));assert.equal(image.closest('.card').classList.contains('is-error'),true);assert.deepEqual(f.errors,[]);
+});
+
+function cardPointer(f,target,type,x,y,id=1) {
+ const event=new f.w.MouseEvent(type,{bubbles:true,cancelable:true,clientX:x,clientY:y,button:0});
+ Object.defineProperties(event,{pointerId:{value:id},pointerType:{value:'mouse'},isPrimary:{value:true}});
+ target.dispatchEvent(event);
+}
+test('drag release leaves a same-size card extracted, consumes its release click, and a later click returns it', async t => {
+ const f=fixture({width:1440,height:900,coarse:false});t.after(f.close);await tick();
+ const thumbs=openDesktopOverview(f),card=thumbs[7],sheet=f.d.getElementById('contact-sheet');card.click();card.click();
+ let captured=null;card.setPointerCapture=id=>{captured=id};card.hasPointerCapture=id=>captured===id;card.releasePointerCapture=()=>{captured=null};
+ card.getBoundingClientRect=()=>({left:300,top:200,right:500,bottom:467,width:200,height:267});
+ const width=card.style.width,height=card.style.height;
+ cardPointer(f,card,'pointerdown',400,300);cardPointer(f,card,'pointermove',600,450);await tick();
+ assert.equal(captured,1);assert.ok(card.style.transform.includes('200px, 150px'));assert.equal(card.style.width,width);assert.equal(card.style.height,height);
+ cardPointer(f,card,'pointerup',600,450);
+ card.dispatchEvent(new f.w.MouseEvent('click',{bubbles:true,detail:1}));
+ assert.equal(card.classList.contains('is-extracted'),true);assert.equal(card.classList.contains('is-dragging'),false);assert.equal(captured,null);
+ await tick();card.click();assert.equal(sheet.children[7],card);assert.equal(card.classList.contains('is-extracted'),false);assert.deepEqual(f.errors,[]);
+});
+test('small pointer movement remains a return click rather than starting a drag', async t => {
+ const f=fixture({width:1440,height:900,coarse:false});t.after(f.close);await tick();
+ const card=openDesktopOverview(f)[7];card.click();card.click();
+ card.getBoundingClientRect=()=>({left:300,top:200,right:500,bottom:467,width:200,height:267});
+ cardPointer(f,card,'pointerdown',400,300);cardPointer(f,card,'pointermove',403,302);cardPointer(f,card,'pointerup',403,302);
+ card.dispatchEvent(new f.w.MouseEvent('click',{bubbles:true,detail:1}));
+ assert.equal(card.classList.contains('is-extracted'),false);assert.deepEqual(f.errors,[]);
+});
+test('drag positions clamp to viewport bounds and resize releases capture and restores the slot', async t => {
+ const f=fixture({width:1440,height:900,coarse:false});t.after(f.close);await tick();
+ const card=openDesktopOverview(f)[7];card.click();card.click();
+ card.getBoundingClientRect=()=>({left:300,top:200,right:500,bottom:467,width:200,height:267});
+ let captured=null;card.setPointerCapture=id=>{captured=id};card.hasPointerCapture=id=>captured===id;card.releasePointerCapture=()=>{captured=null};
+ cardPointer(f,card,'pointerdown',400,300);cardPointer(f,card,'pointermove',10000,10000);await tick();
+ assert.ok(card.style.transform.includes('922px, 415px'));
+ f.w.dispatchEvent(new f.w.Event('resize'));
+ assert.equal(captured,null);assert.equal(f.d.getElementById('contact-sheet').children[7],card);assert.equal(card.classList.contains('is-dragging'),false);
+ assert.equal(card.hasAttribute('style'),false);assert.deepEqual(f.errors,[]);
+});
+test('pointer cancellation leaves the extracted card usable and clears its grabbing state', async t => {
+ const f=fixture({width:1440,height:900,coarse:false});t.after(f.close);await tick();
+ const card=openDesktopOverview(f)[7];card.click();card.click();
+ card.getBoundingClientRect=()=>({left:300,top:200,right:500,bottom:467,width:200,height:267});
+ cardPointer(f,card,'pointerdown',400,300);cardPointer(f,card,'pointermove',450,350);await tick();cardPointer(f,card,'pointercancel',450,350);
+ assert.equal(card.classList.contains('is-extracted'),true);assert.equal(card.classList.contains('is-dragging'),false);
+ card.click();assert.equal(card.classList.contains('is-extracted'),false);assert.deepEqual(f.errors,[]);
+});
+
+test('changing selection during the dragged-card return cancels the old homing animation safely', async t => {
+ const f=fixture({width:1440,height:900,coarse:false});t.after(f.close);await tick();
+ const motions=reverseMotionFixture(f),thumbs=openDesktopOverview(f),card=thumbs[7],sheet=f.d.getElementById('contact-sheet');
+ card.click();card.click();motions[0].finishReverse();await tick();
+ card.getBoundingClientRect=()=>({left:300,top:200,right:500,bottom:467,width:200,height:267});
+ cardPointer(f,card,'pointerdown',400,300);cardPointer(f,card,'pointermove',600,450);await tick();cardPointer(f,card,'pointerup',600,450);await tick();
+ card.click();assert.equal(motions.length,3);thumbs[9].click();assert.equal(motions[2].cancelled,true);
+ motions[2].finishReverse();await tick();assert.equal(sheet.children[7],card);assert.equal(thumbs[9].classList.contains('is-pulled'),true);
+ assert.equal(sheet.children.length,106);assert.deepEqual(f.errors,[]);
+});
+
+test('desktop Browse remembers its last selection and scroll without moving the main feed', async t => {
+ const f=fixture({width:1440,height:900,coarse:false});t.after(f.close);await tick();
+ const thumbs=openDesktopOverview(f),sheet=f.d.getElementById('contact-sheet'),file=f.state().file;
+ thumbs[25].click();assert.equal(thumbs[25].getAttribute('aria-current'),'true');assert.equal(thumbs[0].getAttribute('aria-current'),'false');
+ sheet.scrollTop=123;f.d.getElementById('browse-close').click();await tick();f.d.querySelector('.top .browse-trigger').click();
+ assert.equal(f.d.activeElement,thumbs[25]);assert.equal(sheet.scrollTop,123);assert.equal(f.state().file,file);assert.equal(f.w.scrollY,0);assert.deepEqual(f.errors,[]);
+});
+test('changing the feed photo resets Browse memory to that new photograph', async t => {
+ const f=fixture({width:1440,height:900,coarse:false});t.after(f.close);await tick();
+ const thumbs=openDesktopOverview(f);thumbs[25].click();f.d.getElementById('browse-close').click();await tick();
+ f.w.crypto.getRandomValues=a=>{a[0]=0;return a};f.d.querySelector('.desktop-shuffle').click();await tick();
+ f.d.querySelector('.top .browse-trigger').click();const expected=f.files().indexOf(f.state().file);
+ assert.notEqual(expected,25);assert.equal(f.d.activeElement,thumbs[expected]);assert.equal(thumbs[expected].getAttribute('aria-current'),'true');assert.deepEqual(f.errors,[]);
+});
+test('reopening Browse at a new viewport width centers the remembered photograph', async t => {
+ const f=fixture({width:1440,height:900,coarse:false});t.after(f.close);await tick();
+ const thumbs=openDesktopOverview(f);thumbs[25].focus();f.d.getElementById('browse-close').click();await tick();await f.viewport(1024,900,false);
+ f.d.querySelector('.top .browse-trigger').click();assert.equal(f.d.activeElement,thumbs[25]);assert.equal(f.scrolls.at(-1).element,thumbs[25]);assert.deepEqual(f.errors,[]);
+});
+test('arrow keys move an extracted card without scrolling, and Shift moves it faster', async t => {
+ const f=fixture({width:1440,height:900,coarse:false});t.after(f.close);await tick();
+ const card=openDesktopOverview(f)[7],sheet=f.d.getElementById('contact-sheet');card.click();card.click();
+ card.getBoundingClientRect=()=>({left:300,top:200,right:500,bottom:467,width:200,height:267});
+ const src=card.querySelector('img').src;
+ const first=new f.w.KeyboardEvent('keydown',{key:'ArrowRight',bubbles:true,cancelable:true});card.dispatchEvent(first);
+ card.dispatchEvent(new f.w.KeyboardEvent('keydown',{key:'ArrowDown',shiftKey:true,bubbles:true,cancelable:true}));await tick();
+ assert.equal(first.defaultPrevented,true);assert.ok(card.style.transform.includes('12px, 36px'));assert.equal(sheet.scrollTop,0);assert.equal(f.w.scrollY,0);
+ assert.equal(card.querySelector('img').src,src);assert.equal(card.classList.contains('is-dragging'),false);assert.deepEqual(f.errors,[]);
+});
+test('Escape animates an extracted card back, and a second Escape can close Browse immediately', async t => {
+ const f=fixture({width:1440,height:900,coarse:false});t.after(f.close);await tick();const motions=reverseMotionFixture(f),card=openDesktopOverview(f)[7];
+ card.click();card.click();card.dispatchEvent(new f.w.KeyboardEvent('keydown',{key:'Escape',bubbles:true,cancelable:true}));
+ assert.equal(card.classList.contains('is-extracted'),true);assert.ok(motions.every(m=>m.reversed));assert.equal(f.d.getElementById('browse').open,true);
+ card.dispatchEvent(new f.w.KeyboardEvent('keydown',{key:'Escape',bubbles:true,cancelable:true}));await tick();
+ assert.equal(f.d.getElementById('browse').open,false);assert.equal(card.classList.contains('is-extracted'),false);assert.equal(f.d.getElementById('contact-sheet').children[7],card);assert.deepEqual(f.errors,[]);
+});
+test('activation prioritizes the selected image and extraction reuses a decoded original fallback', async t => {
+ const f=fixture({width:1440,height:900,coarse:false});t.after(f.close);await tick();const card=openDesktopOverview(f)[7],image=card.querySelector('img');
+ assert.ok(card.getAttribute('aria-label').startsWith('Select photograph'));
+ image.dispatchEvent(new f.w.Event('error'));f.load(image);f.hold(true);card.click();
+ assert.equal(image.fetchPriority,'high');assert.equal(image.loading,'eager');assert.equal(f.pending.length,0);
+ card.click();assert.equal(f.pending.length,0);assert.ok(image.src.includes('/images/'));assert.deepEqual(f.errors,[]);
+});
+
+test('rapid close/reopen remembers the overview without stale close events overriding a feed change', async t => {
+ const f=fixture({width:1440,height:900,coarse:false});t.after(f.close);await tick();const thumbs=openDesktopOverview(f),sheet=f.d.getElementById('contact-sheet');
+ thumbs[25].click();sheet.scrollTop=123;f.d.getElementById('browse-close').click();f.d.querySelector('.top .browse-trigger').click();
+ assert.equal(f.d.activeElement,thumbs[25]);assert.equal(sheet.scrollTop,123);
+ f.d.getElementById('browse-close').click();f.w.crypto.getRandomValues=a=>{a[0]=0;return a};f.d.querySelector('.desktop-shuffle').click();f.d.querySelector('.top .browse-trigger').click();
+ const expected=f.files().indexOf(f.state().file);await tick();assert.equal(f.d.activeElement,thumbs[expected]);assert.notEqual(expected,25);assert.deepEqual(f.errors,[]);
 });
