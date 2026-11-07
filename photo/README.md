@@ -58,8 +58,9 @@ border and original isolated stacking order, so cards in front continue to cover
 the lifted card. Only its top edge peeks farther out.
 Reduced-motion preferences disable the transition.
 
-On desktop, the first click brings the existing thumbnail card above the stack,
-keeping its original size and image. No separate preview appears and no detail
+On desktop, the first click slides the existing thumbnail card 80px upward within the stack,
+keeping its original size, image and stacking order. Cards in front stay visible.
+No separate preview appears and no detail
 image loads. Clicking that raised thumbnail again opens the photograph carousel.
 Closing the carousel returns to Browse. Escape, scrolling, resize and blur clear
 the raised state. Clicking the feed photograph also opens the original viewer.
