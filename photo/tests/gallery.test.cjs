@@ -545,34 +545,29 @@ function openDesktopOverview(f) {
   return [...f.d.querySelectorAll('.thumbnail')];
 }
 
-test('desktop first click expands the card and second click opens its carousel, returning to Browse on close', async t => {
- const f=fixture({width:1440,height:900,coarse:false});t.after(f.close);await tick();
- const thumbs=openDesktopOverview(f),sheet=f.d.getElementById('contact-sheet');sheet.scrollTop=777;
- thumbs[15].click();await tick();
- const expanded=f.d.getElementById('expanded-card');
- assert.equal(expanded.hidden,false);assert.equal(f.d.getElementById('browse').open,true);assert.equal(f.d.getElementById('lightbox').open,false);
- assert.equal(expanded.dataset.index,'15');assert.equal(f.d.activeElement,expanded);
- expanded.click();await tick();
- assert.equal(expanded.hidden,true);assert.equal(f.d.getElementById('lightbox').open,true);
- assert.ok(f.d.getElementById('lb-img').src.endsWith(f.files()[15]));
- f.d.querySelector('.lb-next').click();await tick();f.d.querySelector('.lb-close').click();await tick();
- assert.equal(f.d.getElementById('browse').open,true);assert.equal(f.d.activeElement,thumbs[16]);assert.equal(thumbs[16].getAttribute('aria-current'),'true');
- assert.deepEqual(f.errors,[]);
-});
-
-test('expanded card uses the thumbnail immediately and stale detail cannot replace a later selection', async t => {
+test('desktop first click raises only the existing card and second click opens its carousel', async t => {
  const f=fixture({width:1440,height:900,coarse:false});t.after(f.close);await tick();
  const thumbs=openDesktopOverview(f);f.hold(true);
- thumbs[2].click();const img=f.d.getElementById('expanded-img');
- assert.equal(img.src,thumbs[2].querySelector('img').src);assert.equal(f.pending.length,1);
- thumbs[3].click();assert.equal(f.pending.length,2);
- f.pending[0].resolve();await tick();assert.equal(img.src,thumbs[3].querySelector('img').src);
- f.pending[1].resolve();await tick();assert.ok(img.src.includes('/previews/'));
- const expanded=f.d.getElementById('expanded-card');
- expanded.dispatchEvent(new f.w.KeyboardEvent('keydown',{key:'Escape',bubbles:true,cancelable:true}));
- assert.equal(expanded.hidden,true);assert.equal(f.d.getElementById('browse').open,true);assert.equal(f.d.activeElement,thumbs[3]);
- thumbs[4].click();f.d.getElementById('contact-sheet').dispatchEvent(new f.w.Event('scroll'));assert.equal(expanded.hidden,true);
- f.pending.at(-1).resolve();await tick();assert.equal(expanded.hidden,true);assert.deepEqual(f.errors,[]);
+ const image=thumbs[15].querySelector('img'),src=image.src;
+ thumbs[15].click();await tick();
+ assert.equal(thumbs[15].classList.contains('is-pulled'),true);
+ assert.equal(f.d.getElementById('expanded-card'),null);
+ assert.equal(image.src,src);assert.equal(f.pending.length,0);
+ assert.equal(f.d.getElementById('browse').open,true);assert.equal(f.d.getElementById('lightbox').open,false);
+ f.hold(false);thumbs[15].click();await tick();
+ assert.equal(f.d.getElementById('browse').open,true);assert.equal(f.d.getElementById('lightbox').open,true);
+ assert.ok(f.d.getElementById('lb-img').src.endsWith(f.files()[15]));
+ f.d.querySelector('.lb-next').click();await tick();f.d.querySelector('.lb-close').click();await tick();
+ assert.equal(f.d.getElementById('browse').open,true);assert.equal(f.d.activeElement,thumbs[16]);assert.deepEqual(f.errors,[]);
+});
+test('selecting another card, Escape and scrolling reset the pulled-card state without leaving Browse', async t => {
+ const f=fixture({width:1440,height:900,coarse:false});t.after(f.close);await tick();
+ const thumbs=openDesktopOverview(f);thumbs[2].click();thumbs[3].click();
+ assert.equal(thumbs[2].classList.contains('is-pulled'),false);assert.equal(thumbs[3].classList.contains('is-pulled'),true);
+ thumbs[3].dispatchEvent(new f.w.KeyboardEvent('keydown',{key:'Escape',bubbles:true,cancelable:true}));
+ assert.equal(thumbs[3].classList.contains('is-pulled'),false);assert.equal(f.d.getElementById('browse').open,true);
+ thumbs[4].click();f.d.getElementById('contact-sheet').dispatchEvent(new f.w.Event('scroll'));assert.equal(thumbs[4].classList.contains('is-pulled'),false);
+ assert.deepEqual(f.errors,[]);
 });
 
 test('mobile touch keeps thumbnail-to-deck behavior and never enables hover previews', async t => {

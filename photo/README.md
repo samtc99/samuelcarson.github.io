@@ -58,12 +58,11 @@ border and original isolated stacking order, so cards in front continue to cover
 the lifted card. Only its top edge peeks farther out.
 Reduced-motion preferences disable the transition.
 
-On desktop, the first click pulls the thumbnail fully out of the stack into an
-uncropped card. Its cached thumbnail appears immediately and the mobile-size
-detail loads only after that click. Clicking the expanded card opens the original
-carousel. Closing the carousel returns to Browse and its selected thumbnail.
-Escape dismisses the expanded card first; scroll, resize and blur also dismiss it.
-Clicking the feed photograph still opens the original full-size viewer.
+On desktop, the first click brings the existing thumbnail card above the stack,
+keeping its original size and image. No separate preview appears and no detail
+image loads. Clicking that raised thumbnail again opens the photograph carousel.
+Closing the carousel returns to Browse. Escape, scrolling, resize and blur clear
+the raised state. Clicking the feed photograph also opens the original viewer.
 Mobile keeps its native document scrolling and thumbnail-to-feed navigation.
 
 ## Review without publishing
