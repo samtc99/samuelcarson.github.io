@@ -64,3 +64,11 @@ Every card now starts with its optimized higher-resolution preview, including
 cards sitting in the deck. Lazy loading and async decoding remain enabled.
 Extraction reuses the loaded image instead of requesting it again. Card sizing,
 stack order and all three click animations remain unchanged.
+
+## Performance refinement
+
+Keep the approved high-resolution deck and animation behavior while reducing
+background work. The desktop feed selects an optimized or original candidate
+based on display size and pixel density. Mobile scrolling uses cached card
+positions; desktop layout skips unchanged resize observations. See
+[performance.md](performance.md) for measured image bytes, scroll reads and scope.

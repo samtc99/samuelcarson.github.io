@@ -58,7 +58,7 @@ function fixture({ width = 390, height = 844, coarse = true, saved, data = colle
   Object.defineProperty(grid, 'clientHeight', { get:() => mobile() ? height - 132 : parseFloat(grid.style.height) || 0 });
   Object.defineProperty(grid, 'scrollHeight', { get:() => mobile() ? Math.max(grid.clientHeight,
     [...grid.children].reduce((sum, card) => sum + (parseFloat(card.style.getPropertyValue('--card-height')) || 0) + 16, 0)) : grid.clientHeight });
-  Object.defineProperty(w.HTMLElement.prototype, 'offsetTop', { get() {
+  Object.defineProperty(w.HTMLElement.prototype, 'offsetTop', { configurable:true, get() {
     if (!this.classList.contains('card')) return 0;
     if (mobile()) {
       let top = 0;
@@ -751,4 +751,25 @@ test('every overview card starts with the optimized higher-resolution source and
  for(const card of thumbs){const image=card.querySelector('img');assert.ok(image.src.includes('/previews/'));assert.equal(image.loading,'lazy');assert.equal(image.getAttribute('decoding'),'async');}
  const card=thumbs[7],image=card.querySelector('img');f.load(image);const src=image.src;f.hold(true);
  card.click();card.click();assert.equal(f.pending.length,0);assert.equal(image.src,src);assert.deepEqual(f.errors,[]);
+});
+
+test('native mobile scrolling tracks photos without rereading every card position', async t => {
+ const f=fixture({documentDeck:true});t.after(f.close);await tick();
+ const targets=[5,16,37,65].map(index=>({index,top:f.grid.children[index].offsetTop}));
+ const proto=f.w.HTMLElement.prototype,original=Object.getOwnPropertyDescriptor(proto,'offsetTop').get;let reads=0;
+ Object.defineProperty(proto,'offsetTop',{configurable:true,get(){if(this.classList.contains('card'))reads++;return original.call(this)}});
+ for(const {index,top} of targets){f.grid.dispatchEvent(new f.w.Event('touchstart'));f.w.scrollTo({top});await tick();assert.equal(f.state().file,f.files()[index]);}
+ assert.equal(reads,0);assert.deepEqual(f.errors,[]);
+});
+test('unchanged desktop resize observations leave card layout untouched', async t => {
+ const f=fixture({width:1440,height:900,coarse:false});t.after(f.close);await tick();const mutations=[];
+ const observer=new f.w.MutationObserver(records=>mutations.push(...records));observer.observe(f.grid,{attributes:true,subtree:true});
+ await f.resizeObserved();observer.disconnect();assert.equal(mutations.length,0);assert.deepEqual(f.errors,[]);
+});
+test('a failed responsive feed copy removes every source before falling back to the original', async t => {
+ const f=fixture({width:1440,height:900,coarse:false});t.after(f.close);await tick();
+ const image=f.images()[0],picture=image.closest('picture');assert.equal(picture.querySelectorAll('source').length,2);
+ image.dispatchEvent(new f.w.Event('error'));assert.equal(picture.querySelectorAll('source').length,0);
+ assert.ok(image.src.includes('/images/'));assert.equal(image.closest('.card').classList.contains('is-error'),false);
+ image.dispatchEvent(new f.w.Event('error'));assert.equal(image.closest('.card').classList.contains('is-error'),true);assert.deepEqual(f.errors,[]);
 });

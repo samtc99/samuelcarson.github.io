@@ -124,3 +124,15 @@ render, rather than the small contact-sheet thumbnail. Lazy loading and async
 decoding are retained. The card geometry and overlapping layout remain unchanged.
 Extraction reuses an already decoded image; it only retries decoding if needed.
 Missing previews retain the existing fallback to the original photograph.
+
+## Performance
+
+Desktop feed images use responsive candidates: optimized 1080px copies at normal
+column sizes, originals when a larger display/pixel density needs them. The
+original full-screen viewer is unchanged. The high-resolution overview uses
+those same optimized URLs and can reuse images already loaded by the feed.
+Fallback removes every picture source before retrying an original.
+
+Mobile card positions are cached after layout and searched without reading every
+card on each scroll frame. Desktop layout skips unchanged resize observations.
+See `review/performance.md` for the local before/after measurements and limits.

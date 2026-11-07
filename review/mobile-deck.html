@@ -364,6 +364,9 @@ let scrollFrame = 0;
 let wasMobile;
 let lastWidth = 0;
 let lastStageHeight = 0;
+let deckOffsets = [];
+let lastDesktopWidth = 0;
+let lastDesktopColumns = 0;
 let lightboxRequest = 0;
 let browseSelection = null;
 let browseTrigger = null;
@@ -523,6 +526,18 @@ function setActive(index) {
   if (cards[activeIndex]?.getAttribute("aria-current") !== "true") cards[activeIndex]?.setAttribute("aria-current", "true");
   saveState();
 }
+function photoTop(index) {
+  return (mobileView.matches ? deckOffsets[index] : undefined) ?? cards[index]?.offsetTop ?? 0;
+}
+function nearestDeckPhoto(top) {
+  let low = 0, high = deckOffsets.length - 1;
+  while (low < high) {
+    const mid = Math.floor((low + high) / 2);
+    if (deckOffsets[mid] < top) low = mid + 1; else high = mid;
+  }
+  if (!low) return 0;
+  return top - deckOffsets[low - 1] <= deckOffsets[low] - top ? low - 1 : low;
+}
 function scrollToPhoto(index, { focus = false, smooth = false, centerDesktop = false } = {}) {
   if (!photos.length) return;
   setActive(index);
@@ -530,7 +545,7 @@ function scrollToPhoto(index, { focus = false, smooth = false, centerDesktop = f
   const behavior = smooth && !reducedMotion.matches ? "smooth" : "instant";
   if (mobileView.matches) {
     requestedIndex = activeIndex;
-    scrollDeckTo(card.offsetTop, behavior);
+    scrollDeckTo(photoTop(activeIndex), behavior);
   }
   else if (centerDesktop) {
     // Center the photograph in the usable viewport below the sticky header.
@@ -565,7 +580,7 @@ function scrollDeckTo(top, behavior = "instant") {
   else grid.scrollTo({ top: target, behavior });
 }
 function capturePosition(index = activeIndex) {
-  return { file: photos[index]?.file, offset: deckScrollTop() - (cards[index]?.offsetTop || 0),
+  return { file: photos[index]?.file, offset: deckScrollTop() - photoTop(index),
     height: parseFloat(cards[index]?.style.getPropertyValue("--card-height")) || 1,
     windowY: window.scrollY };
 }
@@ -577,7 +592,7 @@ function restorePosition(position, { focus = false, scale = false, retainSelecti
     const height = parseFloat(cards[index].style.getPropertyValue("--card-height")) || position.height;
     const offset = position.offset * (scale ? height / position.height : 1);
     requestedIndex = retainSelection ? index : null;
-    scrollDeckTo(cards[index].offsetTop + offset);
+    scrollDeckTo(photoTop(index) + offset);
   } else window.scrollTo({ top: position.windowY, behavior: "instant" });
   if (focus) cards[index].focus({ preventScroll: true });
 }
@@ -599,20 +614,26 @@ function layoutGallery({ force = false, preservePosition = true } = {}) {
       const cardHeight = Math.min(Math.max(1, width) * photos[i].height / photos[i].width, Math.max(100, height - 32));
       card.style.setProperty("--card-height", `${cardHeight}px`);
     });
+    // Read actual rounded browser positions once after layout, never per scroll frame.
+    deckOffsets = cards.map(card => card.offsetTop);
     if (position) restorePosition(position, { scale: width !== lastWidth, retainSelection: requestedIndex !== null });
     else if (preservePosition) {
       requestedIndex = activeIndex;
-      scrollDeckTo(cards[activeIndex]?.offsetTop || 0);
+      scrollDeckTo(photoTop(activeIndex));
     }
     lastWidth = width;
     lastStageHeight = height;
   } else {
-    grid.dataset.mode = "masonry";
     const style = getComputedStyle(grid);
     const columns = Number(style.getPropertyValue("--columns")) || 3;
     const gap = parseFloat(style.getPropertyValue("--gap")) || 10;
-    const width = (grid.clientWidth - gap * (columns - 1)) / columns;
+    const galleryWidth = grid.clientWidth;
+    const width = (galleryWidth - gap * (columns - 1)) / columns;
     if (width <= 0) return;
+    if (!force && wasMobile === false && galleryWidth === lastDesktopWidth && columns === lastDesktopColumns) return;
+    grid.dataset.mode = "masonry";
+    lastDesktopWidth = galleryWidth;
+    lastDesktopColumns = columns;
     const heights = Array(columns).fill(0);
     const previousLooks = Array(columns).fill("");
     const shootCounts = Array.from({ length: columns }, () => new Map());
@@ -653,7 +674,7 @@ function revealPhoto(img) {
 function imageFailed(img, photo) {
   if (!img.dataset.originalFallback) {
     img.dataset.originalFallback = "true";
-    img.closest("picture").querySelector("source")?.remove();
+    img.closest("picture").querySelectorAll("source").forEach(source => source.remove());
     img.src = photo.src;
   } else img.closest(".card").classList.add("is-error");
 }
@@ -669,6 +690,7 @@ function render() {
     <button class="card" type="button" data-index="${i}" aria-label="View photo ${i + 1} of ${photos.length}: ${escapeHTML(photo.title)}">
       <picture class="photo-picture">
         <source media="${MOBILE_QUERY}" srcset="${escapeHTML(photo.preview)}" ${useOriginals ? "" : 'type="image/webp"'} />
+        <source srcset="${escapeHTML(useOriginals || photo.width <= 1080 ? `${photo.src} ${photo.width}w` : `${photo.preview} 1080w, ${photo.src} ${photo.width}w`)}" sizes="(max-width: 1100px) calc((100vw - 202px) / 2), calc((100vw - 212px) / 3)" />
         <img src="${escapeHTML(photo.src)}" alt="${escapeHTML(photo.alt)}" width="${photo.width}" height="${photo.height}"
           loading="${i < (mobileView.matches ? 2 : 6) ? "eager" : "lazy"}" decoding="async" fetchpriority="${i === activeIndex ? "high" : "auto"}" />
       </picture>
@@ -705,16 +727,10 @@ function render() {
 function updateScrollPosition() {
   scrollFrame = 0;
   if (!mobileView.matches || browse.open || lightbox.open || !cards.length) return;
-  let closest = 0;
-  let distance = Infinity;
   const scrollTop = deckScrollTop();
-  cards.forEach((card, i) => {
-    const delta = Math.abs(card.offsetTop - scrollTop);
-    if (delta < distance) { closest = i; distance = delta; }
-  });
+  let closest = requestedIndex ?? nearestDeckPhoto(scrollTop);
   const end = deckScrollEnd();
-  if (requestedIndex !== null) closest = requestedIndex;
-  else if (end > 0 && scrollTop >= end - 2) closest = cards.length - 1;
+  if (requestedIndex === null && end > 0 && scrollTop >= end - 2) closest = cards.length - 1;
   if (closest !== activeIndex) setActive(closest);
   // Prioritize the chosen photo; warm only small, immediate neighbors.
   const neighbors = navigator.connection?.saveData || useOriginals ? [closest] : [closest, closest - 1, closest + 1];
