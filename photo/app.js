@@ -120,24 +120,50 @@ function extractCard(card) {
   const targetLeft = Math.max(18, Math.min(rect.left + 18, window.innerWidth - rect.width - 18));
   Object.assign(card.style, {left:`${targetLeft}px`,top:`${targetTop}px`,width:`${rect.width}px`,height:`${rect.height}px`});
   card.setAttribute("aria-label", `Return photograph to deck: ${photos[Number(card.dataset.index)].title}`);
-  const state = {card,placeholder,style,motion:null};
+  const surface = document.createElement("span");
+  surface.className = "extraction-surface";
+  surface.append(...card.childNodes);
+  card.append(surface);
+  const state = {card,placeholder,style,surface,motion:null,maskMotion:null};
   extraction = state;
   if (!reducedMotion.matches && typeof card.animate === "function") {
     const startX = rect.left - targetLeft, startY = rect.top - targetTop;
     const clipTop = Math.max(0, bounds.top - rect.top);
+    const timing = {duration:780,easing:"cubic-bezier(.25,.65,.3,1)",fill:"backwards"};
     state.motion = card.animate([
-      {transform:`translate(${startX}px, ${startY}px) rotate(0deg)`,clipPath:`inset(${clipTop}px 0 ${Math.max(0,rect.height-visible)}px 0 round 8px)`,offset:0},
-      {transform:`translate(${startX}px, ${Math.min(startY-100,-35)}px) rotate(-2deg)`,clipPath:"inset(0px 0px 0px 0px round 8px)",offset:.65},
-      {transform:"translate(0px, 0px) rotate(-2deg)",clipPath:"inset(0px 0px 0px 0px round 8px)",offset:1}
-    ], {duration:780,easing:"cubic-bezier(.25,.65,.3,1)",fill:"backwards"});
+      {transform:`translate(${startX}px, ${startY}px) rotate(0deg)`,offset:0},
+      {transform:`translate(${startX}px, ${Math.min(startY-100,-35)}px) rotate(-2deg)`,offset:.65},
+      {transform:"translate(0px, 0px) rotate(-2deg)",offset:1}
+    ], timing);
+    // Clip only the card surface. The outer shadow stays outside that mask.
+    if (typeof surface.animate === "function") {
+      state.maskMotion = surface.animate([
+        {clipPath:`inset(${clipTop}px 0 ${Math.max(0,rect.height-visible)}px 0 round 8px)`,offset:0},
+        {clipPath:"inset(0px 0px 0px 0px round 8px)",offset:.65},
+        {clipPath:"inset(0px 0px 0px 0px round 8px)",offset:1}
+      ], timing);
+      const now = document.timeline?.currentTime;
+      if (now != null) state.motion.startTime = state.maskMotion.startTime = now;
+    }
   }
+  // Only the second click requests detail; keep the cached thumbnail until decoded.
+  const image = surface.querySelector("img");
+  const detail = new Image();
+  detail.decoding = "async";
+  detail.fetchPriority = "high";
+  detail.src = photos[Number(card.dataset.index)].preview;
+  detail.decode().then(() => {
+    if (extraction === state && card.isConnected) image.src = detail.src;
+  }).catch(() => { /* The thumbnail remains visible when detail loading fails. */ });
   card.focus({preventScroll:true});
 }
 function returnExtractedCard() {
   if (!extraction) return;
-  const {card,placeholder,style,motion} = extraction;
+  const {card,placeholder,style,surface,motion,maskMotion} = extraction;
   extraction = null;
   motion?.cancel();
+  maskMotion?.cancel();
+  surface.replaceWith(...surface.childNodes);
   card.classList.remove("is-extracted");
   if (style === null) card.removeAttribute("style"); else card.setAttribute("style",style);
   card.setAttribute("aria-label", `Jump to photo ${Number(card.dataset.index)+1}: ${photos[Number(card.dataset.index)].title}`);

@@ -545,7 +545,7 @@ function openDesktopOverview(f) {
   return [...f.d.querySelectorAll('.thumbnail')];
 }
 
-test('second click animates the same card out without changing its image or opening the viewer', async t => {
+test('second click pulls the same card out and requests detail while holding its thumbnail', async t => {
  const f=fixture({width:1440,height:900,coarse:false});t.after(f.close);await tick();
  const thumbs=openDesktopOverview(f),card=thumbs[15],image=card.querySelector('img'),src=image.src;
  const sheet=f.d.getElementById('contact-sheet');sheet.getBoundingClientRect=()=>({top:160});
@@ -554,10 +554,10 @@ test('second click animates the same card out without changing its image or open
  let motion;card.animate=(frames,options)=>{motion={frames,options,cancelled:false,cancel(){this.cancelled=true}};return motion};
  f.hold(true);card.click();assert.equal(card.classList.contains('is-pulled'),true);card.click();await tick();
  assert.equal(card.classList.contains('is-extracted'),true);assert.equal(card.parentElement,f.d.getElementById('browse'));
- assert.equal(card.querySelector('img'),image);assert.equal(image.src,src);assert.equal(f.pending.length,0);
+ assert.equal(card.querySelector('img'),image);assert.equal(image.src,src);assert.equal(f.pending.length,1);
  assert.equal(card.style.width,'200px');assert.equal(card.style.height,'267px');
  assert.equal(motion.options.duration,780);assert.ok(motion.frames.every(frame=>!frame.transform.includes('scale')));
- assert.notEqual(motion.frames[0].clipPath,motion.frames[1].clipPath);
+ assert.equal(motion.frames[0].clipPath,undefined);assert.ok(card.querySelector('.extraction-surface'));
  assert.equal(f.d.getElementById('lightbox').open,false);assert.equal(sheet.children.length,106);
  card.click();await tick();assert.equal(sheet.children[15],card);assert.equal(card.classList.contains('is-extracted'),false);assert.equal(motion.cancelled,true);
  assert.equal(sheet.children.length,106);assert.deepEqual(f.errors,[]);
@@ -693,4 +693,22 @@ test('Escape and resize restore an extracted card to its exact slot', async t =>
  assert.equal(sheet.children[8],card);assert.equal(card.classList.contains('is-extracted'),false);assert.equal(f.d.getElementById('browse').open,true);
  card.click();card.click();f.w.dispatchEvent(new f.w.Event('resize'));
  assert.equal(sheet.children[8],card);assert.equal(sheet.children.length,106);assert.equal(card.hasAttribute('style'),false);assert.deepEqual(f.errors,[]);
+});
+
+test('second-click detail swaps only after decode and does not alter card geometry or restart motion', async t => {
+ const f=fixture({width:1440,height:900,coarse:false});t.after(f.close);await tick();
+ const card=openDesktopOverview(f)[10],image=card.querySelector('img'),thumb=image.src;
+ f.hold(true);card.click();assert.equal(f.pending.length,0);card.click();
+ const geometry=card.getAttribute('style');assert.equal(f.pending.length,1);assert.equal(image.src,thumb);
+ assert.equal(f.pending[0].image.fetchPriority,'high');
+ f.pending[0].resolve();await tick();assert.ok(image.src.includes('/previews/'));assert.equal(card.getAttribute('style'),geometry);
+ assert.equal(card.querySelector('img'),image);assert.equal(card.classList.contains('is-extracted'),true);assert.deepEqual(f.errors,[]);
+});
+test('late or failed detail loads leave returned and newly extracted cards intact', async t => {
+ const f=fixture({width:1440,height:900,coarse:false});t.after(f.close);await tick();
+ const thumbs=openDesktopOverview(f),first=thumbs[4],second=thumbs[5],image=first.querySelector('img'),src=image.src;
+ f.hold(true);first.click();first.click();first.click();second.click();second.click();
+ f.pending[0].resolve();await tick();assert.equal(image.src,src);assert.equal(second.classList.contains('is-extracted'),true);
+ const secondImage=second.querySelector('img'),secondSrc=secondImage.src;f.pending[1].reject(new Error('offline'));await tick();
+ assert.equal(secondImage.src,secondSrc);assert.equal(second.classList.contains('is-extracted'),true);assert.deepEqual(f.errors,[]);
 });

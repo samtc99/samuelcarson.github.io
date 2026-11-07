@@ -61,8 +61,14 @@ Reduced-motion preferences disable the transition.
 On desktop, the first click slides the existing thumbnail card 80px upward within
 the stack, preserving size and stack order. The second click animates that same
 card up and out, progressively revealing it as it clears the deck. It keeps its
-image, border and dimensions; no zoom, separate preview, carousel or image request
-is introduced by extraction. A matching hidden slot preserves the deck layout.
+border and dimensions; no zoom, separate preview or carousel is introduced.
+The second click requests the optimized higher-resolution detail copy at high priority and
+keeps the thumbnail visible until decoding succeeds. The swap never restarts
+motion; late results are ignored after return or selection changes. A failed
+request leaves the thumbnail usable. Hover and first click load no detail. A matching hidden slot preserves the deck layout.
+The reveal mask lives on an inner card surface, while a stable outer drop shadow
+follows that surface throughout the pull. Transform and mask animations share a
+start time; the shadow is not clipped away during motion.
 Clicking the extracted card, outside it, or Escape returns it to the deck. Scroll,
 resize and blur also restore it. Reduced motion skips extraction animation.
 The main feed's original photograph viewer remains available from feed photos.
