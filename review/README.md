@@ -1,12 +1,19 @@
-# Three-step card interaction
+# Physical card extraction — review before publishing
 
-1. Hover: the top peeks up 20px, preserving stack order.
-2. First click: slide the same thumbnail card 80px upward, behind the cards in front.
-   Keep its size and stacking order.
-   No separate preview, image replacement, or detail download.
-3. Second click on that raised thumbnail: open the photograph carousel directly.
+Desktop Browse:
 
-Closing the carousel returns to Browse. Selecting another thumbnail raises that
-one instead. Escape, scrolling, resize and blur clear the raised state.
-Mobile retains native document scrolling and thumbnail-to-feed navigation.
-Production remains unchanged pending approval.
+1. Hover: peek the top up 20px within the existing stack.
+2. First click: slide the card up 80px total, still behind cards in front.
+3. Second click: visibly pull the same card up and out over 780ms, with no zoom,
+   image replacement, separate preview or carousel. Keep its dimensions and border.
+
+The pull starts from the real card position; a progressive mask reveals its
+lower portion during the lift, then it settles nearby with a slight tilt.
+A hidden matching slot preserves the deck's geometry. Clicking the extracted card
+or outside it, Escape, scroll, resize or blur restores the original slot.
+Reduced motion skips animation. Mobile navigation remains unchanged.
+
+Validation: DOM/navigation checks plus Chromium checks for intermediate animation
+frames, constant dimensions, no extra detail downloads, same-node restoration,
+hover/selection geometry, keyboard dismissal and mobile navigation. Motion
+screenshots inspected. Production remains unchanged pending approval.

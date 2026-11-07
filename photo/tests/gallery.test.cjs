@@ -545,21 +545,24 @@ function openDesktopOverview(f) {
   return [...f.d.querySelectorAll('.thumbnail')];
 }
 
-test('desktop first click raises only the existing card and second click opens its carousel', async t => {
+test('second click animates the same card out without changing its image or opening the viewer', async t => {
  const f=fixture({width:1440,height:900,coarse:false});t.after(f.close);await tick();
- const thumbs=openDesktopOverview(f);f.hold(true);
- const image=thumbs[15].querySelector('img'),src=image.src;
- thumbs[15].click();await tick();
- assert.equal(thumbs[15].classList.contains('is-pulled'),true);
- assert.equal(f.d.getElementById('expanded-card'),null);
- assert.equal(image.src,src);assert.equal(f.pending.length,0);
- assert.equal(f.d.getElementById('browse').open,true);assert.equal(f.d.getElementById('lightbox').open,false);
- f.hold(false);thumbs[15].click();await tick();
- assert.equal(f.d.getElementById('browse').open,true);assert.equal(f.d.getElementById('lightbox').open,true);
- assert.ok(f.d.getElementById('lb-img').src.endsWith(f.files()[15]));
- f.d.querySelector('.lb-next').click();await tick();f.d.querySelector('.lb-close').click();await tick();
- assert.equal(f.d.getElementById('browse').open,true);assert.equal(f.d.activeElement,thumbs[16]);assert.deepEqual(f.errors,[]);
+ const thumbs=openDesktopOverview(f),card=thumbs[15],image=card.querySelector('img'),src=image.src;
+ const sheet=f.d.getElementById('contact-sheet');sheet.getBoundingClientRect=()=>({top:160});
+ card.getBoundingClientRect=()=>({left:400,top:300,width:200,height:267,bottom:567});
+ thumbs[21].getBoundingClientRect=()=>({top:410});
+ let motion;card.animate=(frames,options)=>{motion={frames,options,cancelled:false,cancel(){this.cancelled=true}};return motion};
+ f.hold(true);card.click();assert.equal(card.classList.contains('is-pulled'),true);card.click();await tick();
+ assert.equal(card.classList.contains('is-extracted'),true);assert.equal(card.parentElement,f.d.getElementById('browse'));
+ assert.equal(card.querySelector('img'),image);assert.equal(image.src,src);assert.equal(f.pending.length,0);
+ assert.equal(card.style.width,'200px');assert.equal(card.style.height,'267px');
+ assert.equal(motion.options.duration,780);assert.ok(motion.frames.every(frame=>!frame.transform.includes('scale')));
+ assert.notEqual(motion.frames[0].clipPath,motion.frames[1].clipPath);
+ assert.equal(f.d.getElementById('lightbox').open,false);assert.equal(sheet.children.length,106);
+ card.click();await tick();assert.equal(sheet.children[15],card);assert.equal(card.classList.contains('is-extracted'),false);assert.equal(motion.cancelled,true);
+ assert.equal(sheet.children.length,106);assert.deepEqual(f.errors,[]);
 });
+
 test('selecting another card, Escape and scrolling reset the pulled-card state without leaving Browse', async t => {
  const f=fixture({width:1440,height:900,coarse:false});t.after(f.close);await tick();
  const thumbs=openDesktopOverview(f);thumbs[2].click();thumbs[3].click();
@@ -680,4 +683,14 @@ test('hovering and focusing thumbnails never starts detail decodes or creates a 
  for(const thumb of thumbs.slice(0,12)){pointer(f,thumb,'pointerover');thumb.focus();pointer(f,thumb,'pointerout',f.d.body);}
  await hoverTick();assert.equal(f.pending.length,0);assert.equal(f.d.getElementById('hover-preview'),null);
  assert.deepEqual([...f.grid.children],nodes);assert.deepEqual(thumbs.map(t=>t.querySelector('img').src),srcs);assert.deepEqual(f.errors,[]);
+});
+
+test('Escape and resize restore an extracted card to its exact slot', async t => {
+ const f=fixture({width:1440,height:900,coarse:false});t.after(f.close);await tick();
+ const thumbs=openDesktopOverview(f),sheet=f.d.getElementById('contact-sheet'),card=thumbs[8];
+ card.click();card.click();assert.equal(card.classList.contains('is-extracted'),true);
+ card.dispatchEvent(new f.w.KeyboardEvent('keydown',{key:'Escape',bubbles:true,cancelable:true}));
+ assert.equal(sheet.children[8],card);assert.equal(card.classList.contains('is-extracted'),false);assert.equal(f.d.getElementById('browse').open,true);
+ card.click();card.click();f.w.dispatchEvent(new f.w.Event('resize'));
+ assert.equal(sheet.children[8],card);assert.equal(sheet.children.length,106);assert.equal(card.hasAttribute('style'),false);assert.deepEqual(f.errors,[]);
 });

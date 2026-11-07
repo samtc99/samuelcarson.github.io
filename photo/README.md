@@ -58,12 +58,14 @@ border and original isolated stacking order, so cards in front continue to cover
 the lifted card. Only its top edge peeks farther out.
 Reduced-motion preferences disable the transition.
 
-On desktop, the first click slides the existing thumbnail card 80px upward within the stack,
-keeping its original size, image and stacking order. Cards in front stay visible.
-No separate preview appears and no detail
-image loads. Clicking that raised thumbnail again opens the photograph carousel.
-Closing the carousel returns to Browse. Escape, scrolling, resize and blur clear
-the raised state. Clicking the feed photograph also opens the original viewer.
+On desktop, the first click slides the existing thumbnail card 80px upward within
+the stack, preserving size and stack order. The second click animates that same
+card up and out, progressively revealing it as it clears the deck. It keeps its
+image, border and dimensions; no zoom, separate preview, carousel or image request
+is introduced by extraction. A matching hidden slot preserves the deck layout.
+Clicking the extracted card, outside it, or Escape returns it to the deck. Scroll,
+resize and blur also restore it. Reduced motion skips extraction animation.
+The main feed's original photograph viewer remains available from feed photos.
 Mobile keeps its native document scrolling and thumbnail-to-feed navigation.
 
 ## Review without publishing

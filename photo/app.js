@@ -96,8 +96,56 @@ let viewerReturn = null;
 let shuffleLabelTimer;
 let overviewReturn = null;
 let pulledCard = null;
+let extraction = null;
+function extractCard(card) {
+  if (extraction) return;
+  const rect = card.getBoundingClientRect();
+  const bounds = sheet.getBoundingClientRect();
+  const columns = getComputedStyle(sheet).gridTemplateColumns.split(" ").length || 6;
+  const next = sheet.children[Number(card.dataset.index) + columns];
+  const frontTop = next ? next.getBoundingClientRect().top : rect.bottom;
+  const visible = Math.max(1, Math.min(rect.height, frontTop - rect.top));
+  const placeholder = card.cloneNode(true);
+  placeholder.classList.remove("is-pulled");
+  placeholder.style.visibility = "hidden";
+  placeholder.tabIndex = -1;
+  placeholder.setAttribute("aria-hidden", "true");
+  const style = card.getAttribute("style");
+  card.replaceWith(placeholder);
+  browse.append(card);
+  card.classList.remove("is-pulled");
+  card.classList.add("is-extracted");
+  const topEdge = browse.querySelector(".browse-header").getBoundingClientRect().bottom + 12;
+  const targetTop = Math.max(topEdge, Math.min(rect.top - 120, window.innerHeight - rect.height - 18));
+  const targetLeft = Math.max(18, Math.min(rect.left + 18, window.innerWidth - rect.width - 18));
+  Object.assign(card.style, {left:`${targetLeft}px`,top:`${targetTop}px`,width:`${rect.width}px`,height:`${rect.height}px`});
+  card.setAttribute("aria-label", `Return photograph to deck: ${photos[Number(card.dataset.index)].title}`);
+  const state = {card,placeholder,style,motion:null};
+  extraction = state;
+  if (!reducedMotion.matches && typeof card.animate === "function") {
+    const startX = rect.left - targetLeft, startY = rect.top - targetTop;
+    const clipTop = Math.max(0, bounds.top - rect.top);
+    state.motion = card.animate([
+      {transform:`translate(${startX}px, ${startY}px) rotate(0deg)`,clipPath:`inset(${clipTop}px 0 ${Math.max(0,rect.height-visible)}px 0 round 8px)`,offset:0},
+      {transform:`translate(${startX}px, ${Math.min(startY-100,-35)}px) rotate(-2deg)`,clipPath:"inset(0px 0px 0px 0px round 8px)",offset:.65},
+      {transform:"translate(0px, 0px) rotate(-2deg)",clipPath:"inset(0px 0px 0px 0px round 8px)",offset:1}
+    ], {duration:780,easing:"cubic-bezier(.25,.65,.3,1)",fill:"backwards"});
+  }
+  card.focus({preventScroll:true});
+}
+function returnExtractedCard() {
+  if (!extraction) return;
+  const {card,placeholder,style,motion} = extraction;
+  extraction = null;
+  motion?.cancel();
+  card.classList.remove("is-extracted");
+  if (style === null) card.removeAttribute("style"); else card.setAttribute("style",style);
+  card.setAttribute("aria-label", `Jump to photo ${Number(card.dataset.index)+1}: ${photos[Number(card.dataset.index)].title}`);
+  placeholder.replaceWith(card);
+}
 function clearPulledCard({ focus = false } = {}) {
   const card = pulledCard;
+  returnExtractedCard();
   pulledCard = null;
   if (!card) return;
   card.classList.remove("is-pulled");
@@ -109,7 +157,12 @@ window.addEventListener("resize", () => clearPulledCard());
 window.addEventListener("blur", () => clearPulledCard());
 finePointer.addEventListener("change", () => clearPulledCard());
 browse.addEventListener("click", event => {
-  if (!event.target.closest(".thumbnail")) clearPulledCard();
+  if (event.composedPath().includes(sheet)) return;
+  if (event.target.closest(".is-extracted")) {
+    const card = pulledCard;
+    clearPulledCard();
+    card?.focus({preventScroll:true});
+  } else if (!event.target.closest(".thumbnail")) clearPulledCard();
 });
 browse.addEventListener("keydown", event => {
   if (event.key === "Escape" && pulledCard) {
@@ -371,7 +424,7 @@ sheet.addEventListener("click", event => {
   const button = event.target.closest(".thumbnail");
   if (!button) return;
   if (finePointer.matches && !mobileView.matches) {
-    if (pulledCard === button) openLightbox(Number(button.dataset.index));
+    if (pulledCard === button) extractCard(button);
     else {
       clearPulledCard();
       pulledCard = button;
